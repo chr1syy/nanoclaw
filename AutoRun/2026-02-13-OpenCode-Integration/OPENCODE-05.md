@@ -77,7 +77,7 @@ Configure OpenCode agents to match NanoClaw's system prompt behavior, including 
   - Updated both `src/index.ts` and `src/task-scheduler.ts` to pass `group.containerConfig?.model` to container
   - Documented available models in README.md with examples for Anthropic, OpenAI, and Google models
 
-- [ ] Update `container/opencode.json.template` with agent reference:
+- [x] Update `container/opencode.json.template` with agent reference:
 
   ```json
   {
@@ -91,6 +91,8 @@ Configure OpenCode agents to match NanoClaw's system prompt behavior, including 
     }
   }
   ```
+
+  **Completed:** Configuration already present in `container/opencode.json.template` (lines 45-52). Agent definition file exists at `container/opencode-agents/nanoclaw.md` with proper YAML frontmatter and system prompt.
 
 - [ ] Implement the PreCompact hook equivalent for OpenCode:
 
