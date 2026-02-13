@@ -11,7 +11,24 @@
     "doom_loop": "allow",
     "external_directory": "allow"
   },
-  "tools": {},
+  "tools": {
+    "bash": true,
+    "read": true,
+    "write": true,
+    "edit": true,
+    "glob": true,
+    "grep": true,
+    "websearch": true,
+    "webfetch": true,
+    "task": true,
+    "todo": true,
+    "skill": true,
+    "notebook": true
+  },
+  "mcp": {
+    "allowAll": false,
+    "servers": {}
+  },
   "agent": {
     "build": {
       "mode": "primary"

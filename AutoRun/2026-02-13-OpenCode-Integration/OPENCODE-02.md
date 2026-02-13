@@ -95,10 +95,23 @@ Implement the OpenCode adapter that connects to an OpenCode server running insid
   - OpenCode adapter updated to read port from `OPENCODE_SERVER_PORT` environment variable
   - Working directory defaults to `/workspace/group` (set via WORKDIR and adapter defaults)
 
-- [ ] Implement tool permission mapping from NanoClaw's `allowedTools` to OpenCode's tool config:
+- [x] Implement tool permission mapping from NanoClaw's `allowedTools` to OpenCode's tool config:
   - Map tool names: `Bash` → `bash`, `Read` → `read`, `Write` → `write`, etc.
   - Configure permission levels in `opencode.json`: `"allow"` for permitted tools
   - Handle MCP tool wildcards (`mcp__nanoclaw__*`) appropriately
+
+  **Completed**: Implemented comprehensive tool permission mapping in `opencode-adapter.ts`:
+  - Added `TOOL_NAME_MAP` constant (lines 46-87) mapping NanoClaw PascalCase tool names to OpenCode lowercase names
+  - Created `ToolMappingResult` interface (lines 89-97) to return tools config, MCP server list, and allowAllMcp flag
+  - Enhanced `mapAllowedToolsToOpenCode()` function (lines 99-168) to:
+    - Map standard tools: `Bash`→`bash`, `Read`→`read`, `Write`→`write`, `Edit`→`edit`, etc.
+    - Handle global MCP wildcard (`mcp__*`) setting `allowAllMcp: true`
+    - Extract server names from server-specific wildcards (`mcp__nanoclaw__*`→`nanoclaw`)
+    - Track specific MCP tools (`mcp__serverName__toolName`)
+    - Pass unknown tools through as lowercase
+  - Added `generateOpenCodePermissionConfig()` helper (lines 170-193) for opencode.json permission configuration
+  - Updated `opencode.json.template` with default tool permissions for all supported tools
+  - Exported `ToolMappingResult` type and `mapAllowedToolsToOpenCode` function for external use
 
 ## Acceptance Criteria
 - OpenCode server starts successfully inside container

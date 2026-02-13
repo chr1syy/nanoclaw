@@ -43,32 +43,166 @@ function mapToolState(state: OpenCodeToolState): ToolState {
 }
 
 /**
+ * Tool name mapping from NanoClaw (Claude SDK style) to OpenCode.
+ *
+ * NanoClaw uses PascalCase names: 'Bash', 'Read', 'Write', 'Edit', etc.
+ * OpenCode uses lowercase names: 'bash', 'read', 'write', 'edit', etc.
+ *
+ * Some tools have different names or don't exist in OpenCode:
+ * - Task, TaskOutput, TaskStop → task (single tool in OpenCode)
+ * - TeamCreate, TeamDelete, SendMessage → not direct equivalents (MCP-based)
+ * - TodoWrite → todo
+ * - ToolSearch → No direct equivalent (OpenCode has built-in tool discovery)
+ * - Skill → skill
+ * - NotebookEdit → notebook
+ */
+const TOOL_NAME_MAP: Record<string, string | null> = {
+  // Core file operations
+  'Bash': 'bash',
+  'Read': 'read',
+  'Write': 'write',
+  'Edit': 'edit',
+  'Glob': 'glob',
+  'Grep': 'grep',
+
+  // Web operations
+  'WebSearch': 'websearch',
+  'WebFetch': 'webfetch',
+
+  // Task management (all map to OpenCode's task tool)
+  'Task': 'task',
+  'TaskOutput': 'task',  // Part of task in OpenCode
+  'TaskStop': 'task',    // Part of task in OpenCode
+
+  // Team/agent tools (may be MCP-based in NanoClaw)
+  'TeamCreate': null,    // MCP-based, handled separately
+  'TeamDelete': null,    // MCP-based, handled separately
+  'SendMessage': null,   // MCP-based, handled separately
+
+  // Other tools
+  'TodoWrite': 'todo',
+  'ToolSearch': null,    // No direct equivalent in OpenCode
+  'Skill': 'skill',
+  'NotebookEdit': 'notebook',
+};
+
+/**
+ * Result of mapping allowedTools for OpenCode configuration.
+ */
+interface ToolMappingResult {
+  /** Tools config map (tool name → enabled) */
+  tools: Record<string, boolean>;
+  /** List of MCP server names that should have all tools enabled */
+  mcpServers: string[];
+  /** Whether all MCP tools are allowed (mcp__* wildcard used) */
+  allowAllMcp: boolean;
+}
+
+/**
  * Map NanoClaw's allowedTools list to OpenCode's tools config.
  *
- * NanoClaw uses: 'Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'mcp__nanoclaw__*'
- * OpenCode uses: lowercase names like 'bash', 'read', 'write', 'edit', 'glob', 'grep'
+ * Handles:
+ * - Standard tool name mapping (PascalCase → lowercase)
+ * - MCP wildcards (mcp__* → enable all MCP, mcp__serverName__* → enable server)
+ * - Returns both tools config and MCP server allowlist
+ *
+ * @param allowedTools - Array of allowed tool names from NanoClaw config
+ * @returns ToolMappingResult with tools map and MCP configuration
  */
-function mapAllowedToolsToOpenCode(allowedTools?: string[]): Record<string, boolean> | undefined {
+function mapAllowedToolsToOpenCode(allowedTools?: string[]): ToolMappingResult {
+  const result: ToolMappingResult = {
+    tools: {},
+    mcpServers: [],
+    allowAllMcp: false,
+  };
+
   if (!allowedTools || allowedTools.length === 0) {
-    return undefined;
+    return result;
   }
 
-  const toolMap: Record<string, boolean> = {};
-
   for (const tool of allowedTools) {
-    // Handle MCP wildcards - enable all MCP tools
-    if (tool === 'mcp__*' || tool.startsWith('mcp__') && tool.endsWith('__*')) {
-      // MCP tools are handled separately via mcp config
+    // Handle global MCP wildcard (mcp__*)
+    if (tool === 'mcp__*') {
+      result.allowAllMcp = true;
       continue;
     }
 
-    // Map Claude tool names to OpenCode names (lowercase)
-    const openCodeName = tool.toLowerCase();
-    toolMap[openCodeName] = true;
+    // Handle server-specific MCP wildcard (mcp__serverName__*)
+    if (tool.startsWith('mcp__') && tool.endsWith('__*')) {
+      // Extract server name: mcp__nanoclaw__* → nanoclaw
+      const serverName = tool.slice(5, -3);  // Remove 'mcp__' prefix and '__*' suffix
+      if (serverName && !result.mcpServers.includes(serverName)) {
+        result.mcpServers.push(serverName);
+      }
+      continue;
+    }
+
+    // Handle specific MCP tool (mcp__serverName__toolName)
+    if (tool.startsWith('mcp__')) {
+      // For specific tools, we still need to track the server
+      const parts = tool.slice(5).split('__');  // Remove 'mcp__' and split
+      if (parts.length >= 2) {
+        const serverName = parts[0];
+        if (serverName && !result.mcpServers.includes(serverName)) {
+          result.mcpServers.push(serverName);
+        }
+      }
+      // Specific MCP tools are passed through as-is
+      result.tools[tool.toLowerCase()] = true;
+      continue;
+    }
+
+    // Map standard tool names
+    if (tool in TOOL_NAME_MAP) {
+      const mappedName = TOOL_NAME_MAP[tool];
+      if (mappedName !== null) {
+        result.tools[mappedName] = true;
+      }
+      // Tools mapped to null are MCP-based or have no equivalent
+    } else {
+      // Unknown tool - pass through as lowercase
+      result.tools[tool.toLowerCase()] = true;
+    }
   }
 
-  return Object.keys(toolMap).length > 0 ? toolMap : undefined;
+  return result;
 }
+
+/**
+ * Generate OpenCode permission configuration for tools.
+ *
+ * This maps NanoClaw's tool permission settings to OpenCode's permission format
+ * used in opencode.json. Returns the permission levels that should be set.
+ *
+ * @param allowedTools - Array of allowed tool names from NanoClaw config
+ * @returns Permission configuration object for opencode.json
+ */
+export function generateOpenCodePermissionConfig(
+  allowedTools?: string[]
+): Record<string, 'allow' | 'deny'> {
+  const toolMapping = mapAllowedToolsToOpenCode(allowedTools);
+  const permissions: Record<string, 'allow' | 'deny'> = {};
+
+  // Map core tool permissions
+  // OpenCode uses 'edit', 'bash', 'webfetch' as permission categories
+  if (toolMapping.tools['edit'] || toolMapping.tools['write']) {
+    permissions['edit'] = 'allow';
+  }
+  if (toolMapping.tools['bash']) {
+    permissions['bash'] = 'allow';
+  }
+  if (toolMapping.tools['webfetch'] || toolMapping.tools['websearch']) {
+    permissions['webfetch'] = 'allow';
+  }
+
+  return permissions;
+}
+
+// Export the ToolMappingResult type for external use
+export type { ToolMappingResult };
+
+// Export the mapping function for testing and external configuration
+export { mapAllowedToolsToOpenCode };
 
 /**
  * Normalize an OpenCode event to AgentMessage(s).
@@ -391,7 +525,16 @@ export class OpenCodeAdapter implements AgentAdapter {
       : await this.collectPromptText(prompt);
 
     // Build the tools configuration from allowedTools
-    const tools = mapAllowedToolsToOpenCode(session.config.allowedTools);
+    const toolMapping = mapAllowedToolsToOpenCode(session.config.allowedTools);
+
+    // Build tools config for the prompt
+    // Only include tools map if there are entries
+    // Note: MCP tool permissions (mcpServers, allowAllMcp) are configured at server level
+    // via opencode.json, not per-prompt. The toolMapping.mcpServers and allowAllMcp
+    // fields are available for server configuration but not passed to the prompt.
+    const tools = Object.keys(toolMapping.tools).length > 0
+      ? toolMapping.tools
+      : undefined;
 
     // Build model configuration
     const model = session.config.providerID && session.config.modelID
