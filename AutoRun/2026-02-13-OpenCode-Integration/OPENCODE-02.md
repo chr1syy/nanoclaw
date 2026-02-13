@@ -82,11 +82,18 @@ Implement the OpenCode adapter that connects to an OpenCode server running insid
   - `session.error` → error messages
   - `permission.updated` → permission request messages
 
-- [ ] Configure OpenCode server startup in container context:
+- [x] Configure OpenCode server startup in container context:
   - Modify `container/Dockerfile` to include OpenCode installation: `RUN npm install -g opencode-ai`
   - Create OpenCode config file template at `container/opencode.json.template`
   - Server starts on container init, listens on localhost:4096
   - Configure working directory as `/workspace/group`
+
+  **Completed**: Configured OpenCode server startup with:
+  - `OPENCODE_SERVER_PORT=4096` environment variable added to Dockerfile (line 33)
+  - OpenCode config template copied to `/workspace/group/opencode.json` via Dockerfile COPY instruction (line 58)
+  - Config template updated with `server.port` and `server.host` settings for localhost:4096
+  - OpenCode adapter updated to read port from `OPENCODE_SERVER_PORT` environment variable
+  - Working directory defaults to `/workspace/group` (set via WORKDIR and adapter defaults)
 
 - [ ] Implement tool permission mapping from NanoClaw's `allowedTools` to OpenCode's tool config:
   - Map tool names: `Bash` → `bash`, `Read` → `read`, `Write` → `write`, etc.

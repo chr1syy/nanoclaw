@@ -30,9 +30,10 @@ import type {
 } from './types.js';
 
 /**
- * Default port for OpenCode server
+ * Default port for OpenCode server.
+ * Can be overridden via OPENCODE_SERVER_PORT environment variable.
  */
-const DEFAULT_PORT = 4096;
+const DEFAULT_PORT = parseInt(process.env.OPENCODE_SERVER_PORT || '4096', 10);
 
 /**
  * Map OpenCode tool state to normalized ToolState

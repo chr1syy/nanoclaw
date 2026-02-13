@@ -29,6 +29,9 @@ RUN apt-get update && apt-get install -y \
 ENV AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 
+# OpenCode server configuration
+ENV OPENCODE_SERVER_PORT=4096
+
 # Install agent-browser, claude-code, and opencode globally
 RUN npm install -g agent-browser @anthropic-ai/claude-code opencode-ai
 
@@ -49,6 +52,10 @@ RUN npm run build
 
 # Create workspace directories
 RUN mkdir -p /workspace/group /workspace/global /workspace/extra /workspace/ipc/messages /workspace/ipc/tasks /workspace/ipc/input
+
+# Copy OpenCode configuration template
+# This configures OpenCode to allow all permissions (NanoClaw handles permissions at a higher level)
+COPY opencode.json.template /workspace/group/opencode.json
 
 # Create entrypoint script
 # Sources env from mounted /workspace/env-dir/env if it exists (workaround for Apple Container -i bug)
