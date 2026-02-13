@@ -1,0 +1,19 @@
+{
+  "$schema": "https://opencode.ai/config.schema.json",
+  "permission": {
+    "edit": "allow",
+    "bash": "allow",
+    "webfetch": "allow",
+    "doom_loop": "allow",
+    "external_directory": "allow"
+  },
+  "tools": {},
+  "agent": {
+    "build": {
+      "mode": "primary"
+    }
+  },
+  "share": "disabled",
+  "autoupdate": false,
+  "logLevel": "INFO"
+}
