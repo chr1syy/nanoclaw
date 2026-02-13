@@ -94,7 +94,7 @@ Configure OpenCode agents to match NanoClaw's system prompt behavior, including 
 
   **Completed:** Configuration already present in `container/opencode.json.template` (lines 45-52). Agent definition file exists at `container/opencode-agents/nanoclaw.md` with proper YAML frontmatter and system prompt.
 
-- [ ] Implement the PreCompact hook equivalent for OpenCode:
+- [x] Implement the PreCompact hook equivalent for OpenCode:
 
   OpenCode has plugins with event hooks. Create `container/opencode-plugins/transcript-archiver.ts`:
   ```typescript
@@ -117,6 +117,14 @@ Configure OpenCode agents to match NanoClaw's system prompt behavior, including 
   ```
 
   Note: Verify OpenCode emits a compaction event; if not, implement periodic archiving.
+
+  **Completed:** Created `container/.opencode/plugins/transcript-archiver.js` plugin that:
+  - Hooks into `experimental.session.compacting` event (verified via OpenCode docs)
+  - Archives full transcript to `/workspace/group/conversations/` with timestamped filenames
+  - Injects context summary (files modified, tools used) into compaction prompt
+  - Adds NanoClaw-specific session info to preserve across compaction
+  - Updated `container/opencode.json.template` with plugin reference
+  - Updated `container/Dockerfile` to copy `.opencode/plugins/` directory
 
 ## Acceptance Criteria
 - Agent uses correct system prompt with NanoClaw-specific instructions

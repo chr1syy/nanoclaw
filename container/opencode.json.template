@@ -5,6 +5,9 @@
     "host": "localhost"
   },
   "dataDir": "/home/node/.claude",
+  "plugin": [
+    "/app/.opencode/plugins/transcript-archiver.js"
+  ],
   "permission": {
     "edit": "allow",
     "bash": "allow",

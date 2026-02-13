@@ -64,6 +64,10 @@ COPY opencode.json.template /app/opencode.json.template
 # nanoclaw.md defines the NanoClaw agent with system prompt and tool permissions
 COPY opencode-agents/ /app/opencode-agents/
 
+# Copy OpenCode plugins
+# transcript-archiver.js archives conversation transcripts before compaction
+COPY .opencode/ /app/.opencode/
+
 # Create entrypoint script
 # Sources env from mounted /workspace/env-dir/env if it exists (workaround for Apple Container -i bug)
 # Stdin is buffered to /tmp then piped (Apple Container requires EOF to flush stdin pipe)
