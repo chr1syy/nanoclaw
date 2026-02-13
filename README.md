@@ -115,6 +115,28 @@ Skills we'd love to see:
 - [Claude Code](https://claude.ai/download)
 - [Apple Container](https://github.com/apple/container) (macOS) or [Docker](https://docker.com/products/docker-desktop) (macOS/Linux)
 
+## Model Selection
+
+When using the OpenCode backend (`NANOCLAW_SDK_BACKEND=opencode`), you can configure which model to use:
+
+**Global default** (set in `.env`):
+```bash
+NANOCLAW_MODEL=anthropic/claude-sonnet-4-20250514
+```
+
+**Per-group override**: Set the `model` field in a group's containerConfig via the database.
+
+**Available models** (format: `provider/model-id`):
+- `anthropic/claude-sonnet-4-20250514` (default)
+- `anthropic/claude-opus-4-20250514`
+- `anthropic/claude-3-5-sonnet-20241022`
+- `openai/gpt-4o`
+- `openai/gpt-4-turbo`
+- `google/gemini-1.5-pro`
+- `google/gemini-1.5-flash`
+
+The model format is `provider/model-id`. Check your provider's documentation for the full list of available models.
+
 ## Architecture
 
 ```

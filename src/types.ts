@@ -30,6 +30,7 @@ export interface AllowedRoot {
 export interface ContainerConfig {
   additionalMounts?: AdditionalMount[];
   timeout?: number; // Default: 300000 (5 minutes)
+  model?: string; // Model override (e.g., "anthropic/claude-opus-4-20250514", "openai/gpt-4o")
 }
 
 export interface RegisteredGroup {

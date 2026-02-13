@@ -62,11 +62,20 @@ Configure OpenCode agents to match NanoClaw's system prompt behavior, including 
 
   **Completed:** Added `injectContext()` method to OpenCodeAdapter that uses `noReply: true` prompts for context injection. Updated `runWithOpenCodeBackend()` in index.ts to inject both global CLAUDE.md and per-group CLAUDE.md separately using this method during session initialization (new sessions only).
 
-- [ ] Configure model selection based on container input:
+- [x] Configure model selection based on container input:
   - Read `NANOCLAW_MODEL` env var (default: `anthropic/claude-sonnet-4-20250514`)
   - Pass to session creation: `agent: modelName`
   - Support model override per-group via group config
   - Document available models in README (Claude, GPT-4, Gemini, etc.)
+
+  **Completed:** Implemented model selection with the following changes:
+  - Added `parseModelString()` and `getConfiguredModel()` functions in `opencode-adapter.ts` to parse `NANOCLAW_MODEL` env var
+  - Added `NANOCLAW_MODEL` to allowed env vars in `container-runner.ts` for container passthrough
+  - Added `model?: string` field to `ContainerConfig` in `types.ts` for per-group override
+  - Added `model?: string` field to `ContainerInput` interface for passing to containers
+  - Updated `runWithOpenCodeBackend()` in `index.ts` to parse model string into `providerID` and `modelID` for session config
+  - Updated both `src/index.ts` and `src/task-scheduler.ts` to pass `group.containerConfig?.model` to container
+  - Documented available models in README.md with examples for Anthropic, OpenAI, and Google models
 
 - [ ] Update `container/opencode.json.template` with agent reference:
 

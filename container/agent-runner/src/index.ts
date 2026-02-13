@@ -39,6 +39,7 @@ interface ContainerInput {
   chatJid: string;
   isMain: boolean;
   isScheduledTask?: boolean;
+  model?: string; // Model override (e.g., "anthropic/claude-opus-4-20250514")
 }
 
 interface ContainerOutput {
@@ -469,6 +470,18 @@ async function runWithOpenCodeBackend(
 
   const adapter = createAdapter('opencode') as OpenCodeAdapter;
 
+  // Parse model string if provided (format: "provider/model-id")
+  let providerID: string | undefined;
+  let modelID: string | undefined;
+  if (containerInput.model) {
+    const parts = containerInput.model.split('/');
+    if (parts.length >= 2) {
+      providerID = parts[0];
+      modelID = parts.slice(1).join('/');
+      log(`Using model override: ${providerID}/${modelID}`);
+    }
+  }
+
   // Build session config (without system prompt - we inject it separately via noReply)
   const config: SessionConfig = {
     cwd: '/workspace/group',
@@ -485,6 +498,9 @@ async function runWithOpenCodeBackend(
     permissionMode: 'bypassPermissions',
     allowDangerouslySkipPermissions: true,
     settingSources: ['project', 'user'],
+    // Model configuration - containerInput override takes priority over env var
+    providerID,
+    modelID,
   };
 
   // Create or resume session

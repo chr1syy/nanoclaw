@@ -44,6 +44,39 @@ import type {
 const DEFAULT_PORT = parseInt(process.env.OPENCODE_SERVER_PORT || '4096', 10);
 
 /**
+ * Default model for OpenCode sessions.
+ * Can be overridden via NANOCLAW_MODEL environment variable.
+ * Format: provider/model-id (e.g., anthropic/claude-sonnet-4-20250514)
+ */
+const DEFAULT_MODEL = 'anthropic/claude-sonnet-4-20250514';
+
+/**
+ * Parse a model string into provider and model components.
+ * @param modelString - Model string in format "provider/model-id"
+ * @returns Object with providerID and modelID, or undefined if invalid
+ */
+function parseModelString(modelString: string): { providerID: string; modelID: string } | undefined {
+  const parts = modelString.split('/');
+  if (parts.length < 2) {
+    log(`Invalid model string format: ${modelString} (expected provider/model-id)`);
+    return undefined;
+  }
+  // Handle models with slashes in their ID (e.g., anthropic/claude-3-5-sonnet-20240620)
+  const providerID = parts[0];
+  const modelID = parts.slice(1).join('/');
+  return { providerID, modelID };
+}
+
+/**
+ * Get the configured model from environment or use default.
+ * @returns Parsed model config or undefined
+ */
+function getConfiguredModel(): { providerID: string; modelID: string } | undefined {
+  const modelString = process.env.NANOCLAW_MODEL || DEFAULT_MODEL;
+  return parseModelString(modelString);
+}
+
+/**
  * IPC constants for multi-turn support.
  * These match the values used in the main index.ts.
  */
@@ -583,6 +616,17 @@ export class OpenCodeAdapter implements AgentAdapter {
 
     if (!this.client) {
       throw new Error('OpenCode client not initialized');
+    }
+
+    // Apply model configuration if not already set
+    // Priority: config.providerID/modelID > NANOCLAW_MODEL env > default
+    if (!config.providerID || !config.modelID) {
+      const envModel = getConfiguredModel();
+      if (envModel) {
+        config.providerID = config.providerID || envModel.providerID;
+        config.modelID = config.modelID || envModel.modelID;
+        log(`Using model: ${config.providerID}/${config.modelID}`);
+      }
     }
 
     // Create a new session via the API
