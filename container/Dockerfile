@@ -50,12 +50,15 @@ COPY agent-runner/ ./
 # Build TypeScript
 RUN npm run build
 
-# Create workspace directories
-RUN mkdir -p /workspace/group /workspace/global /workspace/extra /workspace/ipc/messages /workspace/ipc/tasks /workspace/ipc/input
+# Create workspace directories and session storage directory
+# /home/node/.claude is mounted from host for session persistence across container restarts
+RUN mkdir -p /workspace/group /workspace/global /workspace/extra /workspace/ipc/messages /workspace/ipc/tasks /workspace/ipc/input /home/node/.claude
 
 # Copy OpenCode configuration template
 # This configures OpenCode to allow all permissions (NanoClaw handles permissions at a higher level)
-COPY opencode.json.template /workspace/group/opencode.json
+# Template is at /app/opencode.json.template where config-generator.ts expects it
+# Session data is stored at /home/node/.claude (mounted from host for persistence)
+COPY opencode.json.template /app/opencode.json.template
 
 # Create entrypoint script
 # Sources env from mounted /workspace/env-dir/env if it exists (workaround for Apple Container -i bug)
@@ -64,7 +67,8 @@ COPY opencode.json.template /workspace/group/opencode.json
 RUN printf '#!/bin/bash\nset -e\n[ -f /workspace/env-dir/env ] && export $(cat /workspace/env-dir/env | xargs)\ncd /app && npx tsc --outDir /tmp/dist 2>&1 >&2\nln -s /app/node_modules /tmp/dist/node_modules\nchmod -R a-w /tmp/dist\ncat > /tmp/input.json\nnode /tmp/dist/index.js < /tmp/input.json\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # Set ownership to node user (non-root) for writable directories
-RUN chown -R node:node /workspace
+# Include /home/node/.claude for session persistence
+RUN chown -R node:node /workspace /home/node/.claude
 
 # Switch to non-root user (required for --dangerously-skip-permissions)
 USER node

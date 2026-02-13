@@ -59,11 +59,18 @@ Implement OpenCode's session management to match NanoClaw's multi-turn conversat
   - `waitForIpcMessage()` (lines 110-126) polls for new messages or close sentinel
   - `runMultiTurnQuery()` (lines 905-1101) integrates IPC polling during active turns and between turns
 
-- [ ] Configure OpenCode session persistence to map to NanoClaw's session storage:
+- [x] Configure OpenCode session persistence to map to NanoClaw's session storage:
   - OpenCode stores sessions in `~/.local/share/opencode/` by default
   - Map container's `/home/node/.claude/` (current session dir) to OpenCode's session storage
   - Or configure OpenCode's `dataDir` option to use `/home/node/.claude/`
   - Ensure session IDs persist across container restarts
+
+  **Completed:** Session persistence is fully configured:
+  - `opencode.json.template` line 7: `"dataDir": "/home/node/.claude"` configures OpenCode to store sessions in the mounted directory
+  - `container-runner.ts` lines 100-146: Already mounts host's `DATA_DIR/sessions/{group.folder}/.claude` to `/home/node/.claude`
+  - `Dockerfile` updated: Fixed template copy location to `/app/opencode.json.template` (where config-generator.ts expects it)
+  - `Dockerfile` updated: Added `/home/node/.claude` directory creation with proper ownership for the node user
+  - Sessions are isolated per-group (each group has its own session storage directory on the host)
 
 - [ ] Implement session resume functionality:
   - On container start with existing `sessionId`, call `client.session.get({ id: sessionId })`
