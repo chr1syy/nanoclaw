@@ -53,3 +53,14 @@ export const TRIGGER_PATTERN = new RegExp(
 // Uses system timezone by default
 export const TIMEZONE =
   process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+// SDK backend selection: 'claude' | 'opencode'
+// Controls which agent SDK the container uses for query execution.
+// - 'claude': Use official Claude Agent SDK (@anthropic-ai/claude-agent-sdk)
+// - 'opencode': Use OpenCode SDK (@opencode-ai/sdk) for alternative backends
+// Default: 'claude'
+export const SDK_BACKEND = (
+  process.env.NANOCLAW_SDK_BACKEND?.toLowerCase() === 'opencode'
+    ? 'opencode'
+    : 'claude'
+) as 'claude' | 'opencode';

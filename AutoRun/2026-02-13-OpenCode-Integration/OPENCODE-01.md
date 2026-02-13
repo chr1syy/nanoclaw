@@ -69,10 +69,16 @@ Create an abstraction layer that allows NanoClaw to work with either Claude Agen
   - Complete SessionConfig handling including systemPrompt, allowedTools, permissionMode
   - Build compiles successfully in container/agent-runner
 
-- [ ] Add environment variable configuration to select SDK backend:
+- [x] Add environment variable configuration to select SDK backend:
   - Add `NANOCLAW_SDK_BACKEND` env var (values: `claude` | `opencode`, default: `claude`)
   - Document in `src/config.ts` and `.env.example`
   - Pass through container mounts in `src/container-runner.ts`
+
+  **Completed:** Added SDK backend configuration in three locations:
+  - `src/config.ts`: Added `SDK_BACKEND` constant with documentation explaining the two options (claude/opencode)
+  - `.env.example`: Created comprehensive example environment file documenting all configuration options including `NANOCLAW_SDK_BACKEND`
+  - `src/container-runner.ts`: Added `NANOCLAW_SDK_BACKEND` to the `allowedVars` array for environment variable passthrough to containers
+  - Both main project and container/agent-runner TypeScript builds compile successfully
 
 ## Acceptance Criteria
 - Running with `NANOCLAW_SDK_BACKEND=claude` produces identical behavior to current implementation
