@@ -129,27 +129,37 @@ function mapAllowedToolsToOpenCode(allowedTools?: string[]): ToolMappingResult {
     }
 
     // Handle server-specific MCP wildcard (mcp__serverName__*)
+    // Maps: mcp__nanoclaw__* → nanoclaw_* (OpenCode's MCP tool naming pattern)
     if (tool.startsWith('mcp__') && tool.endsWith('__*')) {
       // Extract server name: mcp__nanoclaw__* → nanoclaw
       const serverName = tool.slice(5, -3);  // Remove 'mcp__' prefix and '__*' suffix
-      if (serverName && !result.mcpServers.includes(serverName)) {
-        result.mcpServers.push(serverName);
+      if (serverName) {
+        if (!result.mcpServers.includes(serverName)) {
+          result.mcpServers.push(serverName);
+        }
+        // Add OpenCode-style wildcard pattern: nanoclaw_*
+        // OpenCode names MCP tools as {serverName}_{toolName}
+        result.tools[`${serverName}_*`] = true;
       }
       continue;
     }
 
     // Handle specific MCP tool (mcp__serverName__toolName)
+    // Maps: mcp__nanoclaw__send_message → nanoclaw_send_message
     if (tool.startsWith('mcp__')) {
-      // For specific tools, we still need to track the server
       const parts = tool.slice(5).split('__');  // Remove 'mcp__' and split
       if (parts.length >= 2) {
         const serverName = parts[0];
+        const toolName = parts.slice(1).join('_');  // Join remaining parts with underscore
         if (serverName && !result.mcpServers.includes(serverName)) {
           result.mcpServers.push(serverName);
         }
+        // Map to OpenCode format: nanoclaw_send_message
+        result.tools[`${serverName}_${toolName}`] = true;
+      } else {
+        // Fallback: pass through as lowercase
+        result.tools[tool.toLowerCase()] = true;
       }
-      // Specific MCP tools are passed through as-is
-      result.tools[tool.toLowerCase()] = true;
       continue;
     }
 
@@ -539,9 +549,10 @@ export class OpenCodeAdapter implements AgentAdapter {
 
     // Build tools config for the prompt
     // Only include tools map if there are entries
-    // Note: MCP tool permissions (mcpServers, allowAllMcp) are configured at server level
-    // via opencode.json, not per-prompt. The toolMapping.mcpServers and allowAllMcp
-    // fields are available for server configuration but not passed to the prompt.
+    // MCP tools are mapped from Claude SDK format to OpenCode format:
+    //   mcp__nanoclaw__* → nanoclaw_* (wildcard for all server tools)
+    //   mcp__nanoclaw__send_message → nanoclaw_send_message (specific tool)
+    // Server-level MCP config is in opencode.json.template
     const tools = Object.keys(toolMapping.tools).length > 0
       ? toolMapping.tools
       : undefined;

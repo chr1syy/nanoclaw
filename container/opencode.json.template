@@ -23,7 +23,8 @@
     "task": true,
     "todo": true,
     "skill": true,
-    "notebook": true
+    "notebook": true,
+    "nanoclaw_*": true
   },
   "mcp": {
     "allowAll": false,

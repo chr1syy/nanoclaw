@@ -54,9 +54,16 @@ Port NanoClaw's custom MCP tools (send_message, schedule_task, etc.) to work wit
   - The `config-generator.ts` runs at adapter initialization to substitute environment variables
   - Runtime verification recommended when container is built and deployed
 
-- [ ] Update the OpenCode adapter to handle MCP tool wildcards:
+- [x] Update the OpenCode adapter to handle MCP tool wildcards:
   - Map `mcp__nanoclaw__*` from Claude format to OpenCode's `nanoclaw_*` tool pattern
   - Configure tool permissions in OpenCode config: `"tools": { "nanoclaw_*": "allow" }`
+
+  **Implemented:**
+  - Updated `mapAllowedToolsToOpenCode()` in `opencode-adapter.ts` to convert MCP tool patterns:
+    - `mcp__nanoclaw__*` → `nanoclaw_*` (wildcard for all server tools)
+    - `mcp__nanoclaw__send_message` → `nanoclaw_send_message` (specific tool)
+  - Added `"nanoclaw_*": true` to `opencode.json.template` tools section to enable all MCP tools
+  - Build verified successfully
 
 - [ ] Test IPC communication flow end-to-end:
   - Agent invokes `nanoclaw_send_message` tool
