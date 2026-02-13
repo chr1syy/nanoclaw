@@ -12,12 +12,25 @@
  *   Each result is wrapped in OUTPUT_START_MARKER / OUTPUT_END_MARKER pairs.
  *   Multiple results may be emitted (one per agent teams result).
  *   Final marker after loop ends signals completion.
+ *
+ * SDK Backend Selection:
+ *   Set NANOCLAW_SDK_BACKEND=opencode to use OpenCode SDK
+ *   Default is Claude Agent SDK
  */
 
 import fs from 'fs';
 import path from 'path';
 import { query, HookCallback, PreCompactHookInput } from '@anthropic-ai/claude-agent-sdk';
 import { fileURLToPath } from 'url';
+import {
+  createAdapter,
+  getSdkBackend,
+  OpenCodeAdapter,
+  type AgentAdapter,
+  type Session,
+  type SessionConfig,
+  type AgentMessage,
+} from './sdk-adapter/index.js';
 
 interface ContainerInput {
   prompt: string;
@@ -444,6 +457,142 @@ async function runQuery(
   return { newSessionId, lastAssistantUuid, closedDuringQuery };
 }
 
+/**
+ * Run the agent using OpenCode SDK backend.
+ * Uses the adapter's built-in multi-turn support with IPC polling.
+ */
+async function runWithOpenCodeBackend(
+  containerInput: ContainerInput,
+  initialPrompt: string
+): Promise<void> {
+  log('Using OpenCode SDK backend');
+
+  const adapter = createAdapter('opencode') as OpenCodeAdapter;
+
+  // Load global CLAUDE.md as additional system context
+  const globalClaudeMdPath = '/workspace/global/CLAUDE.md';
+  let globalClaudeMd: string | undefined;
+  if (!containerInput.isMain && fs.existsSync(globalClaudeMdPath)) {
+    globalClaudeMd = fs.readFileSync(globalClaudeMdPath, 'utf-8');
+  }
+
+  // Build session config
+  const config: SessionConfig = {
+    cwd: '/workspace/group',
+    system: globalClaudeMd,
+    allowedTools: [
+      'Bash',
+      'Read', 'Write', 'Edit', 'Glob', 'Grep',
+      'WebSearch', 'WebFetch',
+      'Task', 'TaskOutput', 'TaskStop',
+      'TeamCreate', 'TeamDelete', 'SendMessage',
+      'TodoWrite', 'ToolSearch', 'Skill',
+      'NotebookEdit',
+      'mcp__nanoclaw__*'
+    ],
+    permissionMode: 'bypassPermissions',
+    allowDangerouslySkipPermissions: true,
+    settingSources: ['project', 'user'],
+  };
+
+  // Create or resume session
+  let session: Session;
+  if (containerInput.sessionId) {
+    log(`Resuming session: ${containerInput.sessionId}`);
+    session = await adapter.resumeSession(containerInput.sessionId);
+    session.config = config; // Update config for resumed session
+  } else {
+    session = await adapter.createSession(config);
+  }
+
+  log(`Session ready: ${session.id}`);
+
+  // Run multi-turn query loop (this handles IPC internally)
+  let resultCount = 0;
+  let messageCount = 0;
+  let currentSessionId = session.id;
+
+  for await (const message of adapter.runMultiTurnQuery(session, initialPrompt, {})) {
+    messageCount++;
+    const msgType = message.type === 'system'
+      ? `system/${message.subtype}`
+      : message.type;
+    log(`[msg #${messageCount}] type=${msgType}`);
+
+    // Track session ID from init
+    if (message.type === 'system' && message.subtype === 'init' && message.session_id) {
+      currentSessionId = message.session_id;
+      log(`Session initialized: ${currentSessionId}`);
+    }
+
+    // Handle result messages
+    if (message.type === 'result') {
+      resultCount++;
+      const textResult = message.result || null;
+      log(`Result #${resultCount}: subtype=${message.subtype}${textResult ? ` text=${textResult.slice(0, 200)}` : ''}`);
+      writeOutput({
+        status: 'success',
+        result: textResult,
+        newSessionId: currentSessionId
+      });
+    }
+  }
+
+  log(`OpenCode session complete. Messages: ${messageCount}, results: ${resultCount}`);
+
+  // Clean up adapter resources
+  await adapter.dispose();
+}
+
+/**
+ * Run the agent using Claude SDK backend (original implementation).
+ */
+async function runWithClaudeBackend(
+  containerInput: ContainerInput,
+  initialPrompt: string,
+  mcpServerPath: string
+): Promise<void> {
+  log('Using Claude SDK backend');
+
+  let sessionId = containerInput.sessionId;
+  let prompt = initialPrompt;
+  let resumeAt: string | undefined;
+
+  // Query loop: run query → wait for IPC message → run new query → repeat
+  while (true) {
+    log(`Starting query (session: ${sessionId || 'new'}, resumeAt: ${resumeAt || 'latest'})...`);
+
+    const queryResult = await runQuery(prompt, sessionId, mcpServerPath, containerInput, resumeAt);
+    if (queryResult.newSessionId) {
+      sessionId = queryResult.newSessionId;
+    }
+    if (queryResult.lastAssistantUuid) {
+      resumeAt = queryResult.lastAssistantUuid;
+    }
+
+    // If _close was consumed during the query, exit immediately.
+    if (queryResult.closedDuringQuery) {
+      log('Close sentinel consumed during query, exiting');
+      break;
+    }
+
+    // Emit session update so host can track it
+    writeOutput({ status: 'success', result: null, newSessionId: sessionId });
+
+    log('Query ended, waiting for next IPC message...');
+
+    // Wait for the next message or _close sentinel
+    const nextMessage = await waitForIpcMessage();
+    if (nextMessage === null) {
+      log('Close sentinel received, exiting');
+      break;
+    }
+
+    log(`Got new message (${nextMessage.length} chars), starting new query`);
+    prompt = nextMessage;
+  }
+}
+
 async function main(): Promise<void> {
   let containerInput: ContainerInput;
 
@@ -463,7 +612,6 @@ async function main(): Promise<void> {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const mcpServerPath = path.join(__dirname, 'ipc-mcp-stdio.js');
 
-  let sessionId = containerInput.sessionId;
   fs.mkdirSync(IPC_INPUT_DIR, { recursive: true });
 
   // Clean up stale _close sentinel from previous container runs
@@ -480,42 +628,15 @@ async function main(): Promise<void> {
     prompt += '\n' + pending.join('\n');
   }
 
-  // Query loop: run query → wait for IPC message → run new query → repeat
-  let resumeAt: string | undefined;
+  // Select backend and run
+  const backend = getSdkBackend();
+  log(`SDK backend: ${backend}`);
+
   try {
-    while (true) {
-      log(`Starting query (session: ${sessionId || 'new'}, resumeAt: ${resumeAt || 'latest'})...`);
-
-      const queryResult = await runQuery(prompt, sessionId, mcpServerPath, containerInput, resumeAt);
-      if (queryResult.newSessionId) {
-        sessionId = queryResult.newSessionId;
-      }
-      if (queryResult.lastAssistantUuid) {
-        resumeAt = queryResult.lastAssistantUuid;
-      }
-
-      // If _close was consumed during the query, exit immediately.
-      // Don't emit a session-update marker (it would reset the host's
-      // idle timer and cause a 30-min delay before the next _close).
-      if (queryResult.closedDuringQuery) {
-        log('Close sentinel consumed during query, exiting');
-        break;
-      }
-
-      // Emit session update so host can track it
-      writeOutput({ status: 'success', result: null, newSessionId: sessionId });
-
-      log('Query ended, waiting for next IPC message...');
-
-      // Wait for the next message or _close sentinel
-      const nextMessage = await waitForIpcMessage();
-      if (nextMessage === null) {
-        log('Close sentinel received, exiting');
-        break;
-      }
-
-      log(`Got new message (${nextMessage.length} chars), starting new query`);
-      prompt = nextMessage;
+    if (backend === 'opencode') {
+      await runWithOpenCodeBackend(containerInput, prompt);
+    } else {
+      await runWithClaudeBackend(containerInput, prompt, mcpServerPath);
     }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -523,7 +644,7 @@ async function main(): Promise<void> {
     writeOutput({
       status: 'error',
       result: null,
-      newSessionId: sessionId,
+      newSessionId: containerInput.sessionId,
       error: errorMessage
     });
     process.exit(1);

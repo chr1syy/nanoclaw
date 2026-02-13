@@ -4,6 +4,7 @@
     "port": 4096,
     "host": "localhost"
   },
+  "dataDir": "/home/node/.claude",
   "permission": {
     "edit": "allow",
     "bash": "allow",

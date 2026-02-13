@@ -4,8 +4,15 @@
  *
  * This adapter connects to an OpenCode server (started via createOpencodeServer)
  * and normalizes events to the AgentMessage format used by NanoClaw.
+ *
+ * Multi-turn conversation support:
+ * - Polls IPC input directory for follow-up messages
+ * - Handles _close sentinel for graceful shutdown
+ * - Uses session.idle event to detect when agent is ready for next input
  */
 
+import fs from 'fs';
+import path from 'path';
 import { createOpencodeServer } from '@opencode-ai/sdk/server';
 import { generateConfig } from '../config-generator.js';
 import {
@@ -35,6 +42,88 @@ import type {
  * Can be overridden via OPENCODE_SERVER_PORT environment variable.
  */
 const DEFAULT_PORT = parseInt(process.env.OPENCODE_SERVER_PORT || '4096', 10);
+
+/**
+ * IPC constants for multi-turn support.
+ * These match the values used in the main index.ts.
+ */
+const IPC_INPUT_DIR = '/workspace/ipc/input';
+const IPC_INPUT_CLOSE_SENTINEL = path.join(IPC_INPUT_DIR, '_close');
+const IPC_POLL_MS = 500;
+
+/**
+ * Log utility for adapter debugging.
+ */
+function log(message: string): void {
+  console.error(`[opencode-adapter] ${message}`);
+}
+
+/**
+ * Check for _close sentinel file.
+ * @returns true if _close sentinel exists (and removes it)
+ */
+function shouldClose(): boolean {
+  if (fs.existsSync(IPC_INPUT_CLOSE_SENTINEL)) {
+    try { fs.unlinkSync(IPC_INPUT_CLOSE_SENTINEL); } catch { /* ignore */ }
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Drain all pending IPC input messages.
+ * Reads and deletes JSON files from IPC_INPUT_DIR.
+ * @returns Array of message texts found
+ */
+function drainIpcInput(): string[] {
+  try {
+    fs.mkdirSync(IPC_INPUT_DIR, { recursive: true });
+    const files = fs.readdirSync(IPC_INPUT_DIR)
+      .filter(f => f.endsWith('.json'))
+      .sort();
+
+    const messages: string[] = [];
+    for (const file of files) {
+      const filePath = path.join(IPC_INPUT_DIR, file);
+      try {
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        fs.unlinkSync(filePath);
+        if (data.type === 'message' && data.text) {
+          messages.push(data.text);
+        }
+      } catch (err) {
+        log(`Failed to process input file ${file}: ${err instanceof Error ? err.message : String(err)}`);
+        try { fs.unlinkSync(filePath); } catch { /* ignore */ }
+      }
+    }
+    return messages;
+  } catch (err) {
+    log(`IPC drain error: ${err instanceof Error ? err.message : String(err)}`);
+    return [];
+  }
+}
+
+/**
+ * Wait for a new IPC message or _close sentinel.
+ * @returns The message text, or null if _close sentinel received
+ */
+function waitForIpcMessage(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const poll = () => {
+      if (shouldClose()) {
+        resolve(null);
+        return;
+      }
+      const messages = drainIpcInput();
+      if (messages.length > 0) {
+        resolve(messages.join('\n'));
+        return;
+      }
+      setTimeout(poll, IPC_POLL_MS);
+    };
+    poll();
+  });
+}
 
 /**
  * Map OpenCode tool state to normalized ToolState
@@ -461,6 +550,8 @@ export class OpenCodeAdapter implements AgentAdapter {
     }
 
     // Start the OpenCode server
+    // Session persistence is configured via dataDir in opencode.json.template
+    // which points to /home/node/.claude for persistence across container restarts
     const server = await createOpencodeServer({
       port: this.port,
       config: {
@@ -795,6 +886,227 @@ export class OpenCodeAdapter implements AgentAdapter {
     this.client = undefined;
     this.serverUrl = undefined;
     this.serverClose = undefined;
+  }
+
+  /**
+   * Run a multi-turn query loop with IPC message injection.
+   * This matches the behavior of the Claude SDK flow in index.ts:
+   * 1. Initial query with prompt
+   * 2. Wait for result (session.idle)
+   * 3. Poll IPC for follow-up messages
+   * 4. Send follow-up prompt to same session
+   * 5. Repeat until _close sentinel
+   *
+   * @param session - The session to run queries in
+   * @param initialPrompt - Initial user prompt
+   * @param options - Per-query options
+   * @yields AgentMessage objects from all turns
+   */
+  async *runMultiTurnQuery(
+    session: Session,
+    initialPrompt: string,
+    options: QueryOptions
+  ): AsyncGenerator<AgentMessage> {
+    await this.ensureInitialized();
+
+    if (!this.client) {
+      throw new Error('OpenCode client not initialized');
+    }
+
+    if (!session.id) {
+      throw new Error('Session ID is required for runMultiTurnQuery');
+    }
+
+    // Clean up stale _close sentinel from previous runs
+    try { fs.unlinkSync(IPC_INPUT_CLOSE_SENTINEL); } catch { /* ignore */ }
+    fs.mkdirSync(IPC_INPUT_DIR, { recursive: true });
+
+    // Build the tools configuration from allowedTools
+    const toolMapping = mapAllowedToolsToOpenCode(session.config.allowedTools);
+    const tools = Object.keys(toolMapping.tools).length > 0
+      ? toolMapping.tools
+      : undefined;
+
+    // Build model configuration
+    const model = session.config.providerID && session.config.modelID
+      ? {
+          providerID: session.config.providerID,
+          modelID: session.config.modelID,
+        }
+      : undefined;
+
+    // Track the last message ID for potential resume
+    let lastMessageId: string | undefined;
+    let prompt = initialPrompt;
+    let turnCount = 0;
+
+    // Multi-turn query loop
+    while (true) {
+      turnCount++;
+      log(`Starting turn ${turnCount} (session: ${session.id})`);
+
+      // Send the prompt to the session
+      await this.client.session.prompt({
+        path: { id: session.id },
+        query: {
+          directory: session.config.cwd || this.cwd,
+        },
+        body: {
+          parts: [{ type: 'text', text: prompt }],
+          agent: session.config.agent,
+          system: session.config.system,
+          tools,
+          model,
+        },
+      });
+
+      // Emit init message on first turn
+      if (turnCount === 1) {
+        yield {
+          type: 'system',
+          subtype: 'init',
+          session_id: session.id,
+        };
+      }
+
+      // Subscribe to events for this turn
+      const eventResult = await this.client.event.subscribe({
+        query: {
+          directory: session.config.cwd || this.cwd,
+        },
+      });
+
+      if (!eventResult.stream) {
+        yield {
+          type: 'system',
+          subtype: 'error',
+          message: 'Failed to subscribe to event stream',
+        };
+        yield {
+          type: 'result',
+          subtype: 'error',
+          result: 'Failed to subscribe to event stream',
+        };
+        return;
+      }
+
+      // Track if session became idle and whether close was requested during polling
+      let turnCompleted = false;
+      let closeRequested = false;
+
+      // Poll IPC during the query for messages that should be injected
+      let ipcPolling = true;
+      const pendingMessages: string[] = [];
+
+      const pollIpcDuringQuery = () => {
+        if (!ipcPolling) return;
+        if (shouldClose()) {
+          log('Close sentinel detected during turn');
+          closeRequested = true;
+          ipcPolling = false;
+          return;
+        }
+        const messages = drainIpcInput();
+        for (const text of messages) {
+          log(`Queued IPC message during active turn (${text.length} chars)`);
+          pendingMessages.push(text);
+        }
+        setTimeout(pollIpcDuringQuery, IPC_POLL_MS);
+      };
+      setTimeout(pollIpcDuringQuery, IPC_POLL_MS);
+
+      // Process the event stream for this turn
+      for await (const event of eventResult.stream) {
+        // Check abort signal
+        if (options.abortSignal?.aborted) {
+          ipcPolling = false;
+          await this.abortSession(session);
+          yield {
+            type: 'result',
+            subtype: 'abort',
+            result: 'Session aborted by user',
+          };
+          return;
+        }
+
+        // Filter events for this session
+        if ('properties' in event) {
+          const props = event.properties as Record<string, unknown>;
+          const info = props.info as Record<string, unknown> | undefined;
+          const eventSessionId = props.sessionID ?? info?.id;
+          if (eventSessionId && eventSessionId !== session.id) {
+            continue;
+          }
+        }
+
+        // Track message IDs for potential resume
+        if (event.type === 'message.updated') {
+          const msgInfo = (event.properties as { info: { id: string } }).info;
+          if (msgInfo?.id) {
+            lastMessageId = msgInfo.id;
+          }
+        }
+
+        // Normalize and yield messages
+        const messages = normalizeEvent(event as OpenCodeEvent, session.id);
+        for (const msg of messages) {
+          yield msg;
+        }
+
+        // Check for session.idle - this turn is complete
+        if (event.type === 'session.idle') {
+          const idleEvent = event as { type: 'session.idle'; properties: { sessionID: string } };
+          if (idleEvent.properties.sessionID === session.id) {
+            turnCompleted = true;
+            ipcPolling = false;
+            break;
+          }
+        }
+      }
+
+      log(`Turn ${turnCount} completed, lastMessageId: ${lastMessageId || 'none'}`);
+
+      // Yield a result message for this turn if no result was emitted
+      yield {
+        type: 'result',
+        subtype: 'success',
+        result: undefined,
+      };
+
+      // If close was requested during the turn, exit immediately
+      if (closeRequested) {
+        log('Close sentinel consumed during turn, exiting');
+        return;
+      }
+
+      // Process any pending messages that arrived during the turn
+      if (pendingMessages.length > 0) {
+        prompt = pendingMessages.join('\n');
+        pendingMessages.length = 0;
+        log(`Processing ${pendingMessages.length} pending messages from turn`);
+        continue;
+      }
+
+      // Wait for next IPC message or _close sentinel
+      log('Turn ended, waiting for next IPC message...');
+      const nextMessage = await waitForIpcMessage();
+      if (nextMessage === null) {
+        log('Close sentinel received, exiting');
+        return;
+      }
+
+      log(`Got new message (${nextMessage.length} chars), starting next turn`);
+      prompt = nextMessage;
+    }
+  }
+
+  /**
+   * Get the last message ID from a completed turn.
+   * Useful for session resume functionality.
+   */
+  getLastMessageId(): string | undefined {
+    // This would need to be tracked per-session in a real implementation
+    return undefined;
   }
 
   /**

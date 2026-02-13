@@ -9,7 +9,7 @@ Implement OpenCode's session management to match NanoClaw's multi-turn conversat
 
 ## Tasks
 
-- [ ] Implement multi-turn query loop in the OpenCode adapter to match current behavior:
+- [x] Implement multi-turn query loop in the OpenCode adapter to match current behavior:
 
   Current Claude SDK flow:
   1. Initial query with prompt
