@@ -9,7 +9,7 @@ Update the container build process to support both Claude SDK and OpenCode backe
 
 ## Tasks
 
-- [ ] Update `container/Dockerfile` to install OpenCode alongside existing dependencies:
+- [x] Update `container/Dockerfile` to install OpenCode alongside existing dependencies:
 
   ```dockerfile
   # Existing Claude SDK setup
@@ -32,7 +32,7 @@ Update the container build process to support both Claude SDK and OpenCode backe
   ENTRYPOINT ["/app/entrypoint.sh"]
   ```
 
-- [ ] Create `container/entrypoint.sh` to handle backend selection:
+- [x] Create `container/entrypoint.sh` to handle backend selection:
 
   ```bash
   #!/bin/bash
@@ -61,13 +61,13 @@ Update the container build process to support both Claude SDK and OpenCode backe
   fi
   ```
 
-- [ ] Update `container/build.sh` to build the TypeScript adapter code:
+- [x] Update `container/build.sh` to build the TypeScript adapter code:
   - Compile `sdk-adapter/*.ts` files
   - Compile `config-generator.ts`
   - Bundle OpenCode agent markdown files
   - Copy all artifacts to correct locations in image
 
-- [ ] Create `container/opencode.json.template` with full configuration:
+- [x] Create `container/opencode.json.template` with full configuration:
 
   ```json
   {
@@ -101,7 +101,7 @@ Update the container build process to support both Claude SDK and OpenCode backe
   }
   ```
 
-- [ ] Update `src/container-runner.ts` to pass backend selection:
+- [x] Update `src/container-runner.ts` to pass backend selection:
   - Add `NANOCLAW_SDK_BACKEND` to container environment variables
   - Ensure env var is passed through from host configuration
   - Add to volume mounts if OpenCode needs additional directories
@@ -111,6 +111,7 @@ Update the container build process to support both Claude SDK and OpenCode backe
   - Test Claude backend: `NANOCLAW_SDK_BACKEND=claude container run ...`
   - Test OpenCode backend: `NANOCLAW_SDK_BACKEND=opencode container run ...`
   - Verify both produce expected output structure
+  - **Note:** Requires macOS with Apple Container - cannot be tested on Linux
 
 ## Acceptance Criteria
 - Container builds successfully with both SDK dependencies
