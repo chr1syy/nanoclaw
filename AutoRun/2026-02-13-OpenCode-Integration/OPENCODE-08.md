@@ -1,0 +1,123 @@
+# Phase 8: Output Streaming and Result Handling
+
+## Overview
+Ensure OpenCode adapter produces output in the same format as Claude SDK, maintaining compatibility with the host's output parsing and message routing.
+
+## Prerequisites
+- Phase 7 completed (container builds working)
+- Container can start with OpenCode backend
+
+## Tasks
+
+- [ ] Implement output marker protocol in OpenCode adapter to match existing format:
+
+  Current Claude SDK output format (from `container-runner.ts`):
+  ```typescript
+  // OUTPUT_START_MARKER → JSON → OUTPUT_END_MARKER
+  interface ContainerOutput {
+    status: 'success' | 'error' | 'timeout';
+    result: string | null;
+    newSessionId?: string;
+  }
+  ```
+
+  OpenCode adapter must emit identical markers:
+  ```typescript
+  function writeOutput(output: ContainerOutput) {
+    console.log(OUTPUT_START_MARKER);
+    console.log(JSON.stringify(output));
+    console.log(OUTPUT_END_MARKER);
+  }
+  ```
+
+- [ ] Map OpenCode event types to output emissions:
+
+  ```typescript
+  async *processEvents(events: EventStream) {
+    let resultText = '';
+    let sessionId: string | undefined;
+
+    for await (const event of events) {
+      switch (event.type) {
+        case 'session.created':
+          sessionId = event.properties.session.id;
+          break;
+
+        case 'part.updated':
+          if (event.properties.part.type === 'text') {
+            resultText += event.properties.part.text;
+          }
+          break;
+
+        case 'session.idle':
+          // Agent finished - emit result
+          writeOutput({
+            status: 'success',
+            result: resultText || null,
+            newSessionId: sessionId
+          });
+          resultText = ''; // Reset for next turn
+          break;
+
+        case 'session.error':
+          writeOutput({
+            status: 'error',
+            result: event.properties.error.message,
+            newSessionId: sessionId
+          });
+          break;
+      }
+    }
+  }
+  ```
+
+- [ ] Handle streaming text chunks for real-time output:
+  - OpenCode streams `part.updated` events with incremental text
+  - Accumulate text until `session.idle` signals completion
+  - For long responses, consider emitting intermediate results
+  - Match existing behavior: one result per agent turn
+
+- [ ] Implement error handling and timeout mapping:
+
+  ```typescript
+  // OpenCode error types → ContainerOutput status
+  const statusMap = {
+    'session.error': 'error',
+    'session.timeout': 'timeout',
+    'session.aborted': 'error'
+  };
+
+  // Ensure errors include useful message
+  if (event.type === 'session.error') {
+    writeOutput({
+      status: 'error',
+      result: `OpenCode error: ${event.properties.error.code} - ${event.properties.error.message}`
+    });
+  }
+  ```
+
+- [ ] Test output parsing on host side:
+  - Verify `container-runner.ts` correctly parses OpenCode output
+  - Check marker detection works with both backends
+  - Test error scenarios: timeout, abort, API errors
+  - Verify `onOutput` callback receives correct data
+
+- [ ] Handle the activity timeout reset behavior:
+  - Current behavior: OUTPUT_MARKER resets idle timeout
+  - OpenCode: emit markers on `session.idle` (equivalent)
+  - Verify host's activity detection works with OpenCode output pattern
+  - Test 30-minute idle cleanup triggers correctly
+
+## Acceptance Criteria
+- Output format is identical between Claude and OpenCode backends
+- Host's output parsing code works without modification
+- Error messages are informative and actionable
+- Timeout/abort scenarios handled gracefully
+- Real-time streaming behavior matches expectations
+- WhatsApp messages receive agent responses correctly
+
+## Notes
+- The output marker protocol is the contract between container and host
+- Keep output format backwards compatible - no changes to host parsing code
+- OpenCode may have different error codes - normalize to useful messages
+- Streaming granularity may differ - test with long responses
