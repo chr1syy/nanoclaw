@@ -62,12 +62,25 @@ Implement the OpenCode adapter that connects to an OpenCode server running insid
   - `abortSession()` (lines 570-592): Aborts running sessions via `client.session.abort()` with error handling
   - Fork functionality maps the `resumeAt` parameter to OpenCode's `session.fork({ messageID })` API
 
-- [ ] Implement event stream processing to normalize OpenCode events to `AgentMessage`:
+- [x] Implement event stream processing to normalize OpenCode events to `AgentMessage`:
   - `session.created` → `system/init` message with session_id
   - `message.updated` → `assistant` message with content
   - `part.updated` with `type: "tool"` → tool execution events
   - `session.idle` → `result` message indicating completion
   - Handle `part.updated` with `type: "text"` for streaming text chunks
+
+  **Completed**: The `normalizeEvent()` function in `opencode-adapter.ts` (lines 76-278) fully implements event stream processing:
+  - `session.created` → `system/init` with session_id (lines 80-87)
+  - `message.updated` → `result` message with token usage when assistant message completes (lines 89-127)
+  - `message.part.updated` with `type: "tool"` → `tool_use` (pending/running) and `tool_result` (completed/error) messages (lines 145-176)
+  - `session.idle` → completion signal, handled in `runQuery()` to emit success result (lines 484-496)
+  - `message.part.updated` with `type: "text"` → `text` messages with streaming content (lines 134-142)
+
+  Additional event mappings included:
+  - `session.status` → status updates with retry information
+  - `session.compacted` → compaction notifications
+  - `session.error` → error messages
+  - `permission.updated` → permission request messages
 
 - [ ] Configure OpenCode server startup in container context:
   - Modify `container/Dockerfile` to include OpenCode installation: `RUN npm install -g opencode-ai`
