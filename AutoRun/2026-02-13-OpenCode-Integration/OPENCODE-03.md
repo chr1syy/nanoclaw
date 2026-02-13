@@ -32,12 +32,14 @@ Port NanoClaw's custom MCP tools (send_message, schedule_task, etc.) to work wit
 
   **Note:** Implementation uses `/tmp/dist/ipc-mcp-stdio.js` as the command path since TypeScript is compiled to `/tmp/dist/` at container runtime.
 
-- [ ] Create environment variable substitution script for OpenCode config:
+- [x] Create environment variable substitution script for OpenCode config:
   - Add `container/agent-runner/src/config-generator.ts` that:
     - Reads `opencode.json.template`
     - Substitutes `${VAR}` placeholders with actual env values
     - Writes to `/workspace/.opencode.json` (OpenCode's project config location)
   - Run this before starting the OpenCode server
+
+  **Implemented:** Created `config-generator.ts` with `substituteEnvVars()` and `generateConfig()` functions. Integrated into `opencode-adapter.ts` to run `generateConfig()` before server initialization.
 
 - [ ] Verify MCP tool registration works with OpenCode:
   - Test that `send_message`, `schedule_task`, `list_tasks`, `pause_task`, `resume_task`, `cancel_task`, and `register_group` tools are discoverable

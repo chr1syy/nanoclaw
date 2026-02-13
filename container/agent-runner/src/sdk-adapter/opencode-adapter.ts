@@ -7,6 +7,7 @@
  */
 
 import { createOpencodeServer } from '@opencode-ai/sdk/server';
+import { generateConfig } from '../config-generator.js';
 import {
   OpencodeClient,
   createOpencodeClient,
@@ -438,6 +439,15 @@ export class OpenCodeAdapter implements AgentAdapter {
   private async ensureInitialized(): Promise<void> {
     if (this.initialized) {
       return;
+    }
+
+    // Generate OpenCode config from template before starting server
+    // This substitutes environment variables in the template and writes to /workspace/.opencode.json
+    try {
+      generateConfig();
+    } catch (err) {
+      console.error('[OpenCodeAdapter] Failed to generate config:', err);
+      // Continue anyway - server may work with defaults
     }
 
     // Start the OpenCode server
