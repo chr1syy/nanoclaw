@@ -9,7 +9,7 @@ Configure OpenCode agents to match NanoClaw's system prompt behavior, including 
 
 ## Tasks
 
-- [ ] Create a NanoClaw agent definition for OpenCode in `container/opencode-agents/nanoclaw.md`:
+- [x] Create a NanoClaw agent definition for OpenCode in `container/opencode-agents/nanoclaw.md`:
 
   ```markdown
   ---

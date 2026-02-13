@@ -60,6 +60,10 @@ RUN mkdir -p /workspace/group /workspace/global /workspace/extra /workspace/ipc/
 # Session data is stored at /home/node/.claude (mounted from host for persistence)
 COPY opencode.json.template /app/opencode.json.template
 
+# Copy OpenCode agent definitions
+# nanoclaw.md defines the NanoClaw agent with system prompt and tool permissions
+COPY opencode-agents/ /app/opencode-agents/
+
 # Create entrypoint script
 # Sources env from mounted /workspace/env-dir/env if it exists (workaround for Apple Container -i bug)
 # Stdin is buffered to /tmp then piped (Apple Container requires EOF to flush stdin pipe)

@@ -43,9 +43,12 @@
     }
   },
   "agent": {
-    "build": {
-      "mode": "primary"
+    "nanoclaw": {
+      "prompt": "/app/opencode-agents/nanoclaw.md"
     }
+  },
+  "default": {
+    "agent": "nanoclaw"
   },
   "share": "disabled",
   "autoupdate": false,
