@@ -50,11 +50,17 @@ Implement the OpenCode adapter that connects to an OpenCode server running insid
   }
   ```
 
-- [ ] Implement session management methods in the OpenCode adapter:
+- [x] Implement session management methods in the OpenCode adapter:
   - `createSession()` - Call `client.session.create()` with agent config
   - `resumeSession()` - Use existing session ID, OpenCode handles state persistence
   - `abortSession()` - Call `client.session.abort()`
   - Map OpenCode's session fork capability to support `resumeAt` functionality
+
+  **Completed**: All session management methods were implemented in `opencode-adapter.ts`:
+  - `createSession()` (lines 335-366): Creates sessions via `client.session.create()` with title and directory config
+  - `resumeSession()` (lines 504-565): Retrieves existing sessions via `client.session.get()`, supports `resumeAt` by forking via `client.session.fork()`
+  - `abortSession()` (lines 570-592): Aborts running sessions via `client.session.abort()` with error handling
+  - Fork functionality maps the `resumeAt` parameter to OpenCode's `session.fork({ messageID })` API
 
 - [ ] Implement event stream processing to normalize OpenCode events to `AgentMessage`:
   - `session.created` → `system/init` message with session_id
