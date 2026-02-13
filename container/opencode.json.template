@@ -48,6 +48,12 @@
   "agent": {
     "nanoclaw": {
       "prompt": "/app/opencode-agents/nanoclaw.md"
+    },
+    "explore": {
+      "prompt": "/app/opencode-agents/explore-subagent.md"
+    },
+    "general": {
+      "prompt": "/app/opencode-agents/general-subagent.md"
     }
   },
   "default": {

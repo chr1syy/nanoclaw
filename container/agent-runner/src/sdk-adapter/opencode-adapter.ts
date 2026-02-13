@@ -445,6 +445,30 @@ function normalizeEvent(event: OpenCodeEvent, sessionId: string): AgentMessage[]
           break;
         }
 
+        case 'subtask': {
+          // Subtask (background agent) spawned by the Task tool
+          // The subtask part contains info about the spawned agent
+          const subtaskPart = part as {
+            id: string;
+            sessionID: string;
+            messageID: string;
+            type: 'subtask';
+            prompt: string;
+            description: string;
+            agent: string;
+          };
+          messages.push({
+            type: 'system',
+            subtype: 'task_notification',
+            session_id: sessionId,
+            task_id: subtaskPart.id,
+            status: 'spawned',
+            summary: subtaskPart.description,
+            message: `Subtask spawned: ${subtaskPart.description} (agent: ${subtaskPart.agent})`,
+          });
+          break;
+        }
+
         // Other part types we might want to handle
         case 'step-finish': {
           // Step finish contains token usage per step
