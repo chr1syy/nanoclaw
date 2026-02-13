@@ -47,11 +47,17 @@ Implement OpenCode's session management to match NanoClaw's multi-turn conversat
   }
   ```
 
-- [ ] Implement IPC input polling within the OpenCode adapter:
+- [x] Implement IPC input polling within the OpenCode adapter:
   - Port the `drainIpcInput()` logic from current `index.ts` (lines 296-338)
   - Watch `/workspace/ipc/input/` for JSON message files
   - Handle `_close` sentinel file to trigger graceful shutdown
   - Return message content or `null` for close
+
+  **Completed:** IPC polling is fully implemented in `opencode-adapter.ts`:
+  - `shouldClose()` (lines 65-71) checks for `_close` sentinel
+  - `drainIpcInput()` (lines 78-104) reads and processes JSON files from `/workspace/ipc/input/`
+  - `waitForIpcMessage()` (lines 110-126) polls for new messages or close sentinel
+  - `runMultiTurnQuery()` (lines 905-1101) integrates IPC polling during active turns and between turns
 
 - [ ] Configure OpenCode session persistence to map to NanoClaw's session storage:
   - OpenCode stores sessions in `~/.local/share/opencode/` by default
