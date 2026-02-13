@@ -54,11 +54,20 @@ Create an abstraction layer that allows NanoClaw to work with either Claude Agen
   - All types include JSDoc documentation explaining Claude SDK vs OpenCode SDK mappings
   - Build compiles successfully in container/agent-runner
 
-- [ ] Implement the Claude adapter in `container/agent-runner/src/sdk-adapter/claude-adapter.ts`:
+- [x] Implement the Claude adapter in `container/agent-runner/src/sdk-adapter/claude-adapter.ts`:
   - Wrap existing `query()` import from `@anthropic-ai/claude-agent-sdk`
   - Implement `AgentAdapter` interface
   - Map Claude-specific message types to normalized `AgentMessage`
   - Preserve all existing functionality: hooks, session resume, tool allowlists
+
+  **Completed:** Enhanced the Claude adapter implementation with:
+  - Comprehensive message mapping via `mapClaudeMessage()` that returns an array (assistant messages may contain both text and tool_use blocks)
+  - Full support for system, assistant, result, tool_use, and tool_result message types
+  - Token usage tracking with cache statistics (input, output, cache_read, cache_write)
+  - All three hook types supported: PreCompact, PreTool, PostTool
+  - Proper MCP server configuration passthrough with environment variables
+  - Complete SessionConfig handling including systemPrompt, allowedTools, permissionMode
+  - Build compiles successfully in container/agent-runner
 
 - [ ] Add environment variable configuration to select SDK backend:
   - Add `NANOCLAW_SDK_BACKEND` env var (values: `claude` | `opencode`, default: `claude`)
