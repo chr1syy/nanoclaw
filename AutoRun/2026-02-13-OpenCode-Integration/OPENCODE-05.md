@@ -42,7 +42,7 @@ Configure OpenCode agents to match NanoClaw's system prompt behavior, including 
   - Read CLAUDE.md in your workspace for group-specific context and memory
   ```
 
-- [ ] Implement dynamic system prompt injection for per-group CLAUDE.md:
+- [x] Implement dynamic system prompt injection for per-group CLAUDE.md:
 
   OpenCode supports `noReply` prompts for context injection:
   ```typescript
@@ -59,6 +59,8 @@ Configure OpenCode agents to match NanoClaw's system prompt behavior, including 
   ```
 
   Add this to session initialization in the OpenCode adapter.
+
+  **Completed:** Added `injectContext()` method to OpenCodeAdapter that uses `noReply: true` prompts for context injection. Updated `runWithOpenCodeBackend()` in index.ts to inject both global CLAUDE.md and per-group CLAUDE.md separately using this method during session initialization (new sessions only).
 
 - [ ] Configure model selection based on container input:
   - Read `NANOCLAW_MODEL` env var (default: `anthropic/claude-sonnet-4-20250514`)

@@ -469,17 +469,9 @@ async function runWithOpenCodeBackend(
 
   const adapter = createAdapter('opencode') as OpenCodeAdapter;
 
-  // Load global CLAUDE.md as additional system context
-  const globalClaudeMdPath = '/workspace/global/CLAUDE.md';
-  let globalClaudeMd: string | undefined;
-  if (!containerInput.isMain && fs.existsSync(globalClaudeMdPath)) {
-    globalClaudeMd = fs.readFileSync(globalClaudeMdPath, 'utf-8');
-  }
-
-  // Build session config
+  // Build session config (without system prompt - we inject it separately via noReply)
   const config: SessionConfig = {
     cwd: '/workspace/group',
-    system: globalClaudeMd,
     allowedTools: [
       'Bash',
       'Read', 'Write', 'Edit', 'Glob', 'Grep',
@@ -506,6 +498,26 @@ async function runWithOpenCodeBackend(
   }
 
   log(`Session ready: ${session.id}`);
+
+  // Inject global CLAUDE.md context using noReply prompt (only for new sessions)
+  // This injects the context without triggering a response from the agent
+  if (!containerInput.sessionId && !containerInput.isMain) {
+    const globalClaudeMdPath = '/workspace/global/CLAUDE.md';
+    if (fs.existsSync(globalClaudeMdPath)) {
+      const globalClaudeMd = fs.readFileSync(globalClaudeMdPath, 'utf-8');
+      await adapter.injectContext(session, globalClaudeMd, 'Global Context');
+    }
+  }
+
+  // Inject per-group CLAUDE.md context if present
+  // This gives the agent group-specific memory and instructions
+  if (!containerInput.sessionId) {
+    const groupClaudeMdPath = '/workspace/group/CLAUDE.md';
+    if (fs.existsSync(groupClaudeMdPath)) {
+      const groupClaudeMd = fs.readFileSync(groupClaudeMdPath, 'utf-8');
+      await adapter.injectContext(session, groupClaudeMd, 'Group Context');
+    }
+  }
 
   // Run multi-turn query loop (this handles IPC internally)
   let resultCount = 0;

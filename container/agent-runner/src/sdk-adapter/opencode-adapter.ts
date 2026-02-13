@@ -612,6 +612,47 @@ export class OpenCodeAdapter implements AgentAdapter {
   }
 
   /**
+   * Inject context into a session without triggering a response.
+   * Uses OpenCode's noReply prompt feature for context injection.
+   *
+   * This is useful for injecting:
+   * - Global CLAUDE.md content
+   * - Per-group CLAUDE.md content
+   * - System context that should be available but not directly responded to
+   *
+   * @param session - The session to inject context into
+   * @param context - The context text to inject
+   * @param label - Optional label for the context (used in the header)
+   */
+  async injectContext(session: Session, context: string, label: string = 'Context'): Promise<void> {
+    await this.ensureInitialized();
+
+    if (!this.client) {
+      throw new Error('OpenCode client not initialized');
+    }
+
+    if (!session.id) {
+      throw new Error('Session ID is required for context injection');
+    }
+
+    log(`Injecting ${label} into session ${session.id} (${context.length} chars)`);
+
+    // Use noReply prompt to inject context without triggering a response
+    await this.client.session.prompt({
+      path: { id: session.id },
+      query: {
+        directory: session.config.cwd || this.cwd,
+      },
+      body: {
+        noReply: true,
+        parts: [{ type: 'text', text: `# ${label}\n\n${context}` }]
+      }
+    });
+
+    log(`${label} injected successfully`);
+  }
+
+  /**
    * Run a query with the given prompt and options.
    * Yields normalized AgentMessage objects as they stream from the server.
    */
