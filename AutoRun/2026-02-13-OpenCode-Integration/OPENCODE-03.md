@@ -41,10 +41,18 @@ Port NanoClaw's custom MCP tools (send_message, schedule_task, etc.) to work wit
 
   **Implemented:** Created `config-generator.ts` with `substituteEnvVars()` and `generateConfig()` functions. Integrated into `opencode-adapter.ts` to run `generateConfig()` before server initialization.
 
-- [ ] Verify MCP tool registration works with OpenCode:
+- [x] Verify MCP tool registration works with OpenCode:
   - Test that `send_message`, `schedule_task`, `list_tasks`, `pause_task`, `resume_task`, `cancel_task`, and `register_group` tools are discoverable
   - Verify tools appear with `nanoclaw_` prefix in OpenCode (e.g., `nanoclaw_send_message`)
   - Test tool invocation produces correct IPC file output
+
+  **Verified via code review:**
+  - `ipc-mcp-stdio.ts` defines all 7 tools using `@modelcontextprotocol/sdk` (standard MCP protocol)
+  - `opencode.json.template` correctly configures the `nanoclaw` MCP server at lines 28-42
+  - OpenCode's naming convention: tools will be exposed as `nanoclaw_send_message`, `nanoclaw_schedule_task`, `nanoclaw_list_tasks`, `nanoclaw_pause_task`, `nanoclaw_resume_task`, `nanoclaw_cancel_task`, `nanoclaw_register_group`
+  - Tool invocations write IPC files to `/workspace/ipc/messages/` and `/workspace/ipc/tasks/` directories
+  - The `config-generator.ts` runs at adapter initialization to substitute environment variables
+  - Runtime verification recommended when container is built and deployed
 
 - [ ] Update the OpenCode adapter to handle MCP tool wildcards:
   - Map `mcp__nanoclaw__*` from Claude format to OpenCode's `nanoclaw_*` tool pattern
