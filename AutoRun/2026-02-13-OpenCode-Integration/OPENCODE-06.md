@@ -9,11 +9,18 @@ Implement multi-agent collaboration (agent teams/swarms) using OpenCode's subage
 
 ## Tasks
 
-- [ ] Research OpenCode's multi-agent capabilities:
+- [x] Research OpenCode's multi-agent capabilities:
   - Review how `@general`, `@explore` subagents work
   - Understand if custom subagents can be created dynamically
   - Determine if OpenCode supports the equivalent of Claude SDK's `TeamCreate` tool
   - Document findings in `docs/opencode-agents.md`
+
+  **Completed 2026-02-13**: Research documented in `docs/opencode-agents.md`. Key findings:
+  - Subagents invoked via `@name` mention syntax in prompts (implicit, not programmatic)
+  - No direct `TeamCreate` equivalent - agents must be pre-defined in configuration
+  - Task tool provides background agent spawning with `task_notification` events
+  - Subagents inherit MCP tools from parent session
+  - Agent definitions use markdown files with YAML frontmatter specifying tools/permissions
 
 - [ ] Create subagent definitions for common team patterns in `container/opencode-agents/`:
 
