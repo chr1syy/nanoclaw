@@ -72,7 +72,7 @@ Implement OpenCode's session management to match NanoClaw's multi-turn conversat
   - `Dockerfile` updated: Added `/home/node/.claude` directory creation with proper ownership for the node user
   - Sessions are isolated per-group (each group has its own session storage directory on the host)
 
-- [ ] Implement session resume functionality:
+- [x] Implement session resume functionality:
   - On container start with existing `sessionId`, call `client.session.get({ id: sessionId })`
   - If session exists, continue from last state
   - OpenCode automatically handles conversation history
@@ -87,11 +87,24 @@ Implement OpenCode's session management to match NanoClaw's multi-turn conversat
     }
     ```
 
-- [ ] Update the main agent runner entry point (`container/agent-runner/src/index.ts`):
+  **Completed:** Session resume is fully implemented in `opencode-adapter.ts`:
+  - `resumeSession()` (lines 760-821) retrieves existing sessions via `client.session.get()`
+  - Handles `resumeAt` by forking via `client.session.fork()` (lines 782-807)
+  - Returns Session with queryOptions containing resume/resumeSessionAt metadata
+  - Called from `index.ts` at lines 500-503 when `containerInput.sessionId` exists
+
+- [x] Update the main agent runner entry point (`container/agent-runner/src/index.ts`):
   - Replace direct `query()` calls with adapter interface
   - Use factory function to select adapter based on `NANOCLAW_SDK_BACKEND`
   - Preserve the `MessageStream` pattern for Claude adapter
   - Use polling pattern for OpenCode adapter
+
+  **Completed:** Main entry point fully updated in `index.ts`:
+  - Imports `createAdapter`, `getSdkBackend`, `OpenCodeAdapter` from `sdk-adapter/` (lines 26-33)
+  - Uses `getSdkBackend()` to select backend (line 632)
+  - `runWithOpenCodeBackend()` (lines 464-545) uses adapter interface with `runMultiTurnQuery()`
+  - `runWithClaudeBackend()` (lines 550-594) preserves original MessageStream pattern with Claude SDK
+  - Factory function `createAdapter()` in `sdk-adapter/index.ts` handles backend selection
 
 ## Acceptance Criteria
 - Multi-turn conversations work: initial prompt → result → follow-up → result
