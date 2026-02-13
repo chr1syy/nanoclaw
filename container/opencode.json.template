@@ -27,7 +27,18 @@
   },
   "mcp": {
     "allowAll": false,
-    "servers": {}
+    "servers": {
+      "nanoclaw": {
+        "type": "local",
+        "command": ["node", "/tmp/dist/ipc-mcp-stdio.js"],
+        "environment": {
+          "NANOCLAW_CHAT_JID": "${NANOCLAW_CHAT_JID}",
+          "NANOCLAW_GROUP_FOLDER": "${NANOCLAW_GROUP_FOLDER}",
+          "NANOCLAW_IS_MAIN": "${NANOCLAW_IS_MAIN}"
+        },
+        "timeout": 30000
+      }
+    }
   },
   "agent": {
     "build": {

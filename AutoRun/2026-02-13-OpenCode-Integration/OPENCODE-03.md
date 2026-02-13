@@ -9,7 +9,7 @@ Port NanoClaw's custom MCP tools (send_message, schedule_task, etc.) to work wit
 
 ## Tasks
 
-- [ ] Update `container/opencode.json.template` to configure NanoClaw's MCP server:
+- [x] Update `container/opencode.json.template` to configure NanoClaw's MCP server:
 
   ```json
   {
@@ -29,6 +29,8 @@ Port NanoClaw's custom MCP tools (send_message, schedule_task, etc.) to work wit
   ```
 
   The existing MCP server (`ipc-mcp-stdio.ts`) should work unchanged since it uses standard MCP protocol.
+
+  **Note:** Implementation uses `/tmp/dist/ipc-mcp-stdio.js` as the command path since TypeScript is compiled to `/tmp/dist/` at container runtime.
 
 - [ ] Create environment variable substitution script for OpenCode config:
   - Add `container/agent-runner/src/config-generator.ts` that:
