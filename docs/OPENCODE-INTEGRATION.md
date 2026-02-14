@@ -160,10 +160,15 @@ Default config highlights:
 Entrypoint startup sequence (`container/entrypoint.sh`):
 1. Compile TypeScript into `/tmp/dist`.
 2. If backend is OpenCode:
-- run config generator
-- start `opencode serve`
-- poll `/global/health` until ready
+   - run config generator
+   - start `opencode serve`
+   - poll `/global/health` until ready
 3. Execute `node /tmp/dist/index.js` with buffered stdin input.
+
+Canonical startup path:
+- OpenCode server startup is owned by `container/entrypoint.sh` only.
+- `OpenCodeAdapter` connects to the already-running local server; it does not spawn another server process.
+- Host config uses `NANOCLAW_OPENCODE_PORT`, which is projected to container runtime as `OPENCODE_SERVER_PORT`.
 
 ## Event Normalization
 
@@ -191,7 +196,8 @@ Symptoms:
 Checks:
 - verify backend env: `NANOCLAW_SDK_BACKEND=opencode`
 - inspect container stderr around `opencode serve`
-- verify port consistency (`OPENCODE_SERVER_PORT` / `NANOCLAW_OPENCODE_PORT`)
+- verify configured host port via `NANOCLAW_OPENCODE_PORT` and resulting container listen port (`OPENCODE_SERVER_PORT`)
+- verify no secondary startup path is attempting to launch OpenCode
 
 Likely fixes:
 - rebuild agent image if OpenCode binary/config changed:
@@ -236,10 +242,12 @@ Symptoms:
 Checks:
 - validate model format `provider/model-id`
 - confirm provider credentials are present for the selected model
-- confirm model override precedence (container input > env > default)
+- confirm model override precedence:
+  `group.containerConfig.openCodeModel` > `NANOCLAW_OPENCODE_MODEL` > `NANOCLAW_MODEL` > default
 
 Likely fixes:
 - set `NANOCLAW_OPENCODE_MODEL` to a provider/model you have access to
+- for a group-specific override, set `opencode_model` (stored as `containerConfig.openCodeModel`)
 - rotate/reload provider API credentials in container runtime env
 
 ### Performance or behavior differences vs Claude backend

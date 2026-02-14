@@ -27,13 +27,16 @@ This runbook covers common OpenCode backend failures and concrete recovery steps
 - `NANOCLAW_SDK_BACKEND` not set to `opencode`.
 - Invalid generated `/workspace/.opencode.json`.
 - Stale container build cache after integration changes.
-- Port mismatch between `OPENCODE_SERVER_PORT` and `NANOCLAW_OPENCODE_PORT`.
+- Port mismatch from inconsistent `NANOCLAW_OPENCODE_PORT` configuration.
+- Attempting to start OpenCode outside the container entrypoint flow.
 
 ### Checks
 ```bash
 echo "$NANOCLAW_SDK_BACKEND"
+echo "$NANOCLAW_OPENCODE_PORT"
 cat /workspace/.opencode.json
 ```
+- Confirm OpenCode is started only by `container/entrypoint.sh` when backend is `opencode`.
 
 ### Fixes
 ```bash
@@ -42,7 +45,8 @@ container builder stop && container builder rm && container builder start
 ```
 - Ensure `NANOCLAW_SDK_BACKEND=opencode`.
 - Regenerate config and verify valid JSON.
-- Keep OpenCode port values aligned.
+- Keep `NANOCLAW_OPENCODE_PORT` consistent with the expected service port.
+- Do not launch `opencode serve` manually from `agent-runner`; the entrypoint owns startup and health checks.
 
 ## 2) Session persistence issues
 
@@ -103,12 +107,14 @@ container builder stop && container builder rm && container builder start
 - Verify model is in `provider/model-id` format.
 - Verify required provider keys are set in runtime environment.
 - Validate model availability against provider account access.
+- Confirm precedence is applied as: `group.containerConfig.openCodeModel` > `NANOCLAW_OPENCODE_MODEL` > `NANOCLAW_MODEL` > default.
 
 ### Fixes
 - Set a model you are authorized to use, for example:
 ```bash
 export NANOCLAW_OPENCODE_MODEL=anthropic/claude-sonnet-4-20250514
 ```
+- For a single group override, set `opencode_model` via group registration or update `containerConfig.openCodeModel`.
 - Rotate or refresh provider credentials.
 - Restart service after environment changes.
 

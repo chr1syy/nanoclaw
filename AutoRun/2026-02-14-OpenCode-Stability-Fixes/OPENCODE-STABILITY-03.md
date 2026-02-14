@@ -5,7 +5,11 @@
   - Validation results: host typecheck ✅, host targeted tests ✅, agent-runner build ✅, Claude backend smoke ✅, OpenCode backend smoke ✅.
   - Actionable blocker recorded: container image build (`./container/build.sh`) failed with `container: command not found` (exit `127`), requiring Apple Container CLI availability on host.
 
-- [ ] Update operational docs (`docs/TROUBLESHOOTING-OPENCODE.md`, `docs/OPENCODE-INTEGRATION.md`, and `README.md` if needed) to reflect the single OpenCode startup path and canonical model env behavior. Success criteria: docs match implemented behavior and remove contradictory startup/config guidance.
+- [x] Update operational docs (`docs/TROUBLESHOOTING-OPENCODE.md`, `docs/OPENCODE-INTEGRATION.md`, and `README.md` if needed) to reflect the single OpenCode startup path and canonical model env behavior. Success criteria: docs match implemented behavior and remove contradictory startup/config guidance.
+  - Completed 2026-02-14: aligned all three docs with implementation details in `container/entrypoint.sh`, `src/opencode-model.ts`, and `src/container-runner.ts`.
+  - Documented canonical startup path: OpenCode server starts only via `container/entrypoint.sh` when `NANOCLAW_SDK_BACKEND=opencode`; adapter does not start a second server.
+  - Clarified model/override behavior: `containerConfig.openCodeModel` > `NANOCLAW_OPENCODE_MODEL` > `NANOCLAW_MODEL` > built-in default.
+  - Removed contradictory README guidance that referenced legacy per-group `containerConfig.model` for OpenCode model selection.
 
 - [ ] Add a release note entry in `CHANGELOG.md` summarizing fixed blockers (build unblocked, OpenCode startup conflict removed, tests stabilized) and any residual known limitations. Success criteria: changelog contains a dated entry with concrete outcomes.
 

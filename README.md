@@ -136,6 +136,8 @@ Configure your preferred model:
 NANOCLAW_OPENCODE_MODEL=anthropic/claude-sonnet-4-20250514
 ```
 
+OpenCode startup is automatic when `NANOCLAW_SDK_BACKEND=opencode`; NanoClaw starts `opencode serve` from `container/entrypoint.sh` and waits for health before running the agent.
+
 ## Model Selection
 
 When using the OpenCode backend (`NANOCLAW_SDK_BACKEND=opencode`), you can configure which model to use:
@@ -145,7 +147,13 @@ When using the OpenCode backend (`NANOCLAW_SDK_BACKEND=opencode`), you can confi
 NANOCLAW_OPENCODE_MODEL=anthropic/claude-sonnet-4-20250514
 ```
 
-**Per-group override**: Set the `model` field in a group's containerConfig via the database.
+**Per-group override**: Set `opencode_model` in `register_group` (persisted as `containerConfig.openCodeModel`).
+
+Model precedence:
+- `containerConfig.openCodeModel` (group override)
+- `NANOCLAW_OPENCODE_MODEL` (canonical global env)
+- `NANOCLAW_MODEL` (backward-compatible fallback)
+- built-in default (`anthropic/claude-sonnet-4-20250514`)
 
 **Available models** (format: `provider/model-id`):
 - `anthropic/claude-sonnet-4-20250514` (default)
