@@ -117,7 +117,7 @@ Comprehensive testing of both SDK backends to ensure feature parity and backward
   ```
   - Completed in `container/agent-runner/src/__tests__/agent-teams.test.ts` with backend-aware coverage for Claude team tool enablement, OpenCode `@explore` flow, OpenCode subtask/task-notification mapping, merged subagent result output, and MCP wildcard availability in subagent-capable session config.
 
-- [ ] Create performance benchmarks:
+- [x] Create performance benchmarks:
 
   `benchmarks/sdk-comparison.ts`:
   ```typescript
@@ -138,6 +138,9 @@ Comprehensive testing of both SDK backends to ensure feature parity and backward
     // Compare container memory between backends
   });
   ```
+  - Completed in `container/agent-runner/src/benchmarks/sdk-comparison.ts` with backend-to-backend benchmarks for session creation, simple query, tool-heavy query, and memory usage (RSS/heap deltas), plus summary table output and raw sample reporting.
+  - Added `benchmark:sdk` script in `container/agent-runner/package.json` to run compiled benchmarks via `node --expose-gc dist/benchmarks/sdk-comparison.js`.
+  - Added helper coverage in `container/agent-runner/src/__tests__/sdk-comparison-benchmark.test.ts` (3 passing tests) for benchmark math/timing primitives.
 
 - [ ] Document test results and any behavioral differences:
   - Create `docs/SDK-COMPARISON.md` with test findings
