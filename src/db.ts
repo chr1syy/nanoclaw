@@ -70,6 +70,8 @@ function createSchema(database: Database.Database): void {
       trigger_pattern TEXT NOT NULL,
       added_at TEXT NOT NULL,
       container_config TEXT,
+      sdk_backend TEXT DEFAULT NULL,
+      opencode_model TEXT DEFAULT NULL,
       requires_trigger INTEGER DEFAULT 1
     );
   `);
@@ -81,6 +83,58 @@ function createSchema(database: Database.Database): void {
     );
   } catch {
     /* column already exists */
+  }
+
+  // Add per-group SDK selection columns if they don't exist (migration for existing DBs)
+  try {
+    database.exec(
+      `ALTER TABLE registered_groups ADD COLUMN sdk_backend TEXT DEFAULT NULL`,
+    );
+  } catch {
+    /* column already exists */
+  }
+  try {
+    database.exec(
+      `ALTER TABLE registered_groups ADD COLUMN opencode_model TEXT DEFAULT NULL`,
+    );
+  } catch {
+    /* column already exists */
+  }
+
+  // Backfill SDK columns from legacy container_config JSON (best effort).
+  const rows = database
+    .prepare(
+      `SELECT jid, container_config, sdk_backend, opencode_model
+       FROM registered_groups
+       WHERE container_config IS NOT NULL`,
+    )
+    .all() as Array<{
+    jid: string;
+    container_config: string | null;
+    sdk_backend: string | null;
+    opencode_model: string | null;
+  }>;
+  const updateSdkPrefs = database.prepare(
+    `UPDATE registered_groups
+     SET sdk_backend = COALESCE(?, sdk_backend),
+         opencode_model = COALESCE(?, opencode_model)
+     WHERE jid = ?`,
+  );
+  for (const row of rows) {
+    if (!row.container_config) continue;
+    try {
+      const parsed = JSON.parse(row.container_config) as {
+        sdkBackend?: string;
+        openCodeModel?: string;
+      };
+      const sdkBackend = row.sdk_backend || parsed.sdkBackend || null;
+      const openCodeModel = row.opencode_model || parsed.openCodeModel || null;
+      if (sdkBackend !== row.sdk_backend || openCodeModel !== row.opencode_model) {
+        updateSdkPrefs.run(sdkBackend, openCodeModel, row.jid);
+      }
+    } catch {
+      /* ignore malformed legacy JSON */
+    }
   }
 }
 
@@ -465,19 +519,38 @@ export function getRegisteredGroup(
         trigger_pattern: string;
         added_at: string;
         container_config: string | null;
+        sdk_backend: 'claude' | 'opencode' | null;
+        opencode_model: string | null;
         requires_trigger: number | null;
       }
     | undefined;
   if (!row) return undefined;
+  const containerConfig = row.container_config
+    ? JSON.parse(row.container_config)
+    : undefined;
+  if (row.sdk_backend || row.opencode_model) {
+    const merged = { ...(containerConfig || {}) } as NonNullable<
+      RegisteredGroup['containerConfig']
+    >;
+    if (row.sdk_backend) merged.sdkBackend = row.sdk_backend;
+    if (row.opencode_model) merged.openCodeModel = row.opencode_model;
+    return {
+      jid: row.jid,
+      name: row.name,
+      folder: row.folder,
+      trigger: row.trigger_pattern,
+      added_at: row.added_at,
+      containerConfig: merged,
+      requiresTrigger: row.requires_trigger === null ? undefined : row.requires_trigger === 1,
+    };
+  }
   return {
     jid: row.jid,
     name: row.name,
     folder: row.folder,
     trigger: row.trigger_pattern,
     added_at: row.added_at,
-    containerConfig: row.container_config
-      ? JSON.parse(row.container_config)
-      : undefined,
+    containerConfig,
     requiresTrigger: row.requires_trigger === null ? undefined : row.requires_trigger === 1,
   };
 }
@@ -487,8 +560,10 @@ export function setRegisteredGroup(
   group: RegisteredGroup,
 ): void {
   db.prepare(
-    `INSERT OR REPLACE INTO registered_groups (jid, name, folder, trigger_pattern, added_at, container_config, requires_trigger)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO registered_groups (
+       jid, name, folder, trigger_pattern, added_at, container_config, sdk_backend, opencode_model, requires_trigger
+     )
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     jid,
     group.name,
@@ -496,6 +571,8 @@ export function setRegisteredGroup(
     group.trigger,
     group.added_at,
     group.containerConfig ? JSON.stringify(group.containerConfig) : null,
+    group.containerConfig?.sdkBackend ?? null,
+    group.containerConfig?.openCodeModel ?? null,
     group.requiresTrigger === undefined ? 1 : group.requiresTrigger ? 1 : 0,
   );
 }
@@ -510,18 +587,28 @@ export function getAllRegisteredGroups(): Record<string, RegisteredGroup> {
     trigger_pattern: string;
     added_at: string;
     container_config: string | null;
+    sdk_backend: 'claude' | 'opencode' | null;
+    opencode_model: string | null;
     requires_trigger: number | null;
   }>;
   const result: Record<string, RegisteredGroup> = {};
   for (const row of rows) {
+    const containerConfig = row.container_config
+      ? JSON.parse(row.container_config)
+      : undefined;
+    const mergedContainerConfig = row.sdk_backend || row.opencode_model
+      ? {
+          ...(containerConfig || {}),
+          ...(row.sdk_backend ? { sdkBackend: row.sdk_backend } : {}),
+          ...(row.opencode_model ? { openCodeModel: row.opencode_model } : {}),
+        }
+      : containerConfig;
     result[row.jid] = {
       name: row.name,
       folder: row.folder,
       trigger: row.trigger_pattern,
       added_at: row.added_at,
-      containerConfig: row.container_config
-        ? JSON.parse(row.container_config)
-        : undefined,
+      containerConfig: mergedContainerConfig,
       requiresTrigger: row.requires_trigger === null ? undefined : row.requires_trigger === 1,
     };
   }

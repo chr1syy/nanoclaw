@@ -65,7 +65,7 @@ Create a unified configuration system that supports both SDK backends with clear
   - Added `NANOCLAW_OPENCODE_MODEL` and `NANOCLAW_OPENCODE_PORT` examples with defaults and usage context.
   - Added provider API key placeholders (`OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`) for non-Anthropic OpenCode model support.
 
-- [ ] Update database schema for group SDK preferences:
+- [x] Update database schema for group SDK preferences:
 
   Add migration in `src/db.ts`:
   ```typescript
@@ -77,6 +77,10 @@ Create a unified configuration system that supports both SDK backends with clear
   ```
 
   Create migration script if using formal migrations.
+  - Updated `src/db.ts` `registered_groups` schema to include nullable `sdk_backend` and `opencode_model` columns.
+  - Added safe `ALTER TABLE` migrations for existing deployments and a best-effort backfill from legacy `container_config` JSON values.
+  - Updated registered-group DB read/write accessors to persist and hydrate SDK preference columns while maintaining backward compatibility with `container_config`.
+  - Added coverage in `src/db.test.ts` for SDK preference persistence through `setRegisteredGroup`, `getRegisteredGroup`, and `getAllRegisteredGroups`.
 
 - [ ] Create documentation for SDK selection in `docs/SDK-BACKENDS.md`:
 

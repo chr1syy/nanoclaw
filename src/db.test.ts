@@ -5,13 +5,17 @@ import {
   createTask,
   deleteTask,
   getAllChats,
+  getAllRegisteredGroups,
   getMessagesSince,
   getNewMessages,
+  getRegisteredGroup,
   getTaskById,
+  setRegisteredGroup,
   storeChatMetadata,
   storeMessage,
   updateTask,
 } from './db.js';
+import { RegisteredGroup } from './types.js';
 
 beforeEach(() => {
   _initTestDatabase();
@@ -255,6 +259,57 @@ describe('storeChatMetadata', () => {
 });
 
 // --- Task CRUD ---
+
+describe('registered groups', () => {
+  it('persists per-group SDK backend and OpenCode model preferences', () => {
+    const group: RegisteredGroup = {
+      name: 'SDK Group',
+      folder: 'sdk-group',
+      trigger: '@Nano',
+      added_at: '2024-01-01T00:00:00.000Z',
+      containerConfig: {
+        sdkBackend: 'opencode',
+        openCodeModel: 'openai/gpt-4.1',
+      },
+    };
+
+    setRegisteredGroup('sdk@g.us', group);
+
+    const stored = getRegisteredGroup('sdk@g.us');
+    expect(stored).toBeDefined();
+    expect(stored!.containerConfig?.sdkBackend).toBe('opencode');
+    expect(stored!.containerConfig?.openCodeModel).toBe('openai/gpt-4.1');
+  });
+
+  it('returns SDK preferences through getAllRegisteredGroups', () => {
+    setRegisteredGroup('a@g.us', {
+      name: 'A',
+      folder: 'group-a',
+      trigger: '@Nano',
+      added_at: '2024-01-01T00:00:00.000Z',
+      containerConfig: {
+        sdkBackend: 'claude',
+      },
+    });
+    setRegisteredGroup('b@g.us', {
+      name: 'B',
+      folder: 'group-b',
+      trigger: '@Nano',
+      added_at: '2024-01-01T00:00:00.000Z',
+      containerConfig: {
+        sdkBackend: 'opencode',
+        openCodeModel: 'anthropic/claude-sonnet-4-20250514',
+      },
+    });
+
+    const groups = getAllRegisteredGroups();
+    expect(groups['a@g.us'].containerConfig?.sdkBackend).toBe('claude');
+    expect(groups['b@g.us'].containerConfig?.sdkBackend).toBe('opencode');
+    expect(groups['b@g.us'].containerConfig?.openCodeModel).toBe(
+      'anthropic/claude-sonnet-4-20250514',
+    );
+  });
+});
 
 describe('task CRUD', () => {
   it('creates and retrieves a task', () => {
