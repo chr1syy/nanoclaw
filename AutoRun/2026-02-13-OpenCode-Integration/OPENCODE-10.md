@@ -103,7 +103,7 @@ Comprehensive testing of both SDK backends to ensure feature parity and backward
 
   - Completed in `container/agent-runner/src/__tests__/output-parity.test.ts` with prompt-matrix parity checks that run both backends and compare output structure (`status`, `result` type, and `newSessionId` presence) for behavioral compatibility.
 
-- [ ] Test agent teams/subagent functionality:
+- [x] Test agent teams/subagent functionality:
 
   `agent-teams.test.ts`:
   ```typescript
@@ -115,6 +115,7 @@ Comprehensive testing of both SDK backends to ensure feature parity and backward
     it('MCP tools accessible from subagent context');
   });
   ```
+  - Completed in `container/agent-runner/src/__tests__/agent-teams.test.ts` with backend-aware coverage for Claude team tool enablement, OpenCode `@explore` flow, OpenCode subtask/task-notification mapping, merged subagent result output, and MCP wildcard availability in subagent-capable session config.
 
 - [ ] Create performance benchmarks:
 
