@@ -36,8 +36,21 @@ Run commands directly—don't tell the user to run them.
 ```bash
 npm run dev          # Run with hot reload
 npm run build        # Compile TypeScript
+npm test             # Run host-side test suite
 ./container/build.sh # Rebuild agent container
 ```
+
+Backend verification (Claude + OpenCode):
+```bash
+# Host-side integration checks for backend selection/model wiring
+npm test -- src/config.test.ts src/container-runner.test.ts src/backend-health.test.ts
+```
+
+Runtime smoke test for both backends:
+- `NANOCLAW_SDK_BACKEND=claude` (default path)
+- `NANOCLAW_SDK_BACKEND=opencode` (OpenCode path)
+- verify health output: `curl http://127.0.0.1:${NANOCLAW_HEALTH_PORT:-8787}/health`
+- send one prompt in a test group on each backend and confirm response + tool call
 
 Service management:
 ```bash
@@ -55,3 +68,32 @@ container builder stop && container builder rm && container builder start
 ```
 
 Always verify after rebuild: `container run -i --rm --entrypoint wc nanoclaw-agent:latest -l /app/src/index.ts`
+
+Clean rebuild is required after changes in:
+- `container/entrypoint.sh`
+- `container/opencode.json.template`
+- `container/agent-runner/src/**`
+- `container/Dockerfile`
+
+## Backend Configuration
+
+Global backend selection:
+```bash
+NANOCLAW_SDK_BACKEND=claude   # or opencode
+```
+
+OpenCode defaults:
+```bash
+NANOCLAW_OPENCODE_MODEL=anthropic/claude-sonnet-4-20250514
+NANOCLAW_OPENCODE_PORT=4096
+NANOCLAW_HEALTH_PORT=8787
+```
+
+Per-group overrides are supported via chat command:
+- `/config sdk claude`
+- `/config sdk opencode`
+
+References:
+- `docs/SDK-BACKENDS.md`
+- `docs/MIGRATION.md`
+- `docs/OPENCODE-INTEGRATION.md`

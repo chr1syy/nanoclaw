@@ -116,7 +116,9 @@ Create comprehensive documentation for the OpenCode integration, including a mig
   - Performance differences
   - Agent behavior differences
 
-- [ ] Update `CLAUDE.md` project instructions if needed:
+- [x] Update `CLAUDE.md` project instructions if needed:
+
+  Notes (2026-02-14): Updated `CLAUDE.md` with explicit dual-backend validation workflow (backend-selection host tests plus runtime smoke checks for Claude/OpenCode and health endpoint verification), clear conditions for mandatory clean container rebuilds after backend-related file changes, and a centralized backend configuration section covering global backend selection, OpenCode model/port/health options, per-group `/config sdk` overrides, and doc references.
 
   Ensure any changes to development workflow are documented:
   - How to test both backends
