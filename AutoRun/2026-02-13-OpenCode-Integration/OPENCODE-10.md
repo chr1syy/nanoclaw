@@ -75,7 +75,7 @@ Comprehensive testing of both SDK backends to ensure feature parity and backward
   ```
   - Completed in `container/agent-runner/src/__tests__/e2e/message-flow.test.ts` with backend-specific message-flow coverage for Claude/OpenCode processing, multi-turn behavior, IPC follow-ups, resume/persistence semantics, and scheduled-task prompt context.
 
-- [ ] Create comparison tests to verify output equivalence:
+- [x] Create comparison tests to verify output equivalence:
 
   `output-parity.test.ts`:
   ```typescript
@@ -100,6 +100,8 @@ Comprehensive testing of both SDK backends to ensure feature parity and backward
     });
   });
   ```
+
+  - Completed in `container/agent-runner/src/__tests__/output-parity.test.ts` with prompt-matrix parity checks that run both backends and compare output structure (`status`, `result` type, and `newSessionId` presence) for behavioral compatibility.
 
 - [ ] Test agent teams/subagent functionality:
 
