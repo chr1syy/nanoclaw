@@ -1133,6 +1133,9 @@ export class OpenCodeAdapter implements AgentAdapter {
       // Track if session became idle and whether close was requested during polling
       let turnCompleted = false;
       let closeRequested = false;
+      let turnResultEmitted = false;
+      let turnResultText = '';
+      let turnSessionId = session.id;
 
       // Poll IPC during the query for messages that should be injected
       let ipcPolling = true;
@@ -1169,13 +1172,36 @@ export class OpenCodeAdapter implements AgentAdapter {
           return;
         }
 
+        // Capture session ID updates from lifecycle events.
+        if (event.type === 'session.created') {
+          const createdEvent = event as { type: 'session.created'; properties: { info: { id?: string } } };
+          const createdSessionId = createdEvent.properties?.info?.id;
+          if (createdSessionId) {
+            turnSessionId = createdSessionId;
+          }
+        }
+
         // Filter events for this session
         if ('properties' in event) {
           const props = event.properties as Record<string, unknown>;
           const info = props.info as Record<string, unknown> | undefined;
           const eventSessionId = props.sessionID ?? info?.id;
-          if (eventSessionId && eventSessionId !== session.id) {
+          if (event.type !== 'session.created' && eventSessionId && eventSessionId !== session.id) {
             continue;
+          }
+        }
+
+        // Accumulate streaming text chunks for the final turn result.
+        if (event.type === 'message.part.updated') {
+          const partEvent = event as {
+            type: 'message.part.updated';
+            properties: { part?: { type?: string; text?: string }; delta?: string };
+          };
+          if (partEvent.properties.part?.type === 'text') {
+            const textDelta = partEvent.properties.delta ?? partEvent.properties.part.text ?? '';
+            if (textDelta) {
+              turnResultText += textDelta;
+            }
           }
         }
 
@@ -1187,16 +1213,46 @@ export class OpenCodeAdapter implements AgentAdapter {
           }
         }
 
-        // Normalize and yield messages
+        // Normalize and yield messages (result is emitted from terminal events below).
         const messages = normalizeEvent(event as OpenCodeEvent, session.id);
         for (const msg of messages) {
+          if (msg.type === 'result') {
+            continue;
+          }
           yield msg;
+        }
+
+        if (event.type === 'session.error') {
+          const errorEvent = event as {
+            type: 'session.error';
+            properties: { error?: { name?: string; data?: { message?: string } }; sessionID?: string };
+          };
+          const errorName = errorEvent.properties.error?.name;
+          const errorMessage = errorEvent.properties.error?.data?.message || 'Unknown error';
+          const formattedError = errorName ? `${errorName}: ${errorMessage}` : errorMessage;
+
+          yield {
+            type: 'result',
+            subtype: 'error',
+            result: formattedError,
+          };
+          turnResultEmitted = true;
+          turnCompleted = true;
+          ipcPolling = false;
+          break;
         }
 
         // Check for session.idle - this turn is complete
         if (event.type === 'session.idle') {
           const idleEvent = event as { type: 'session.idle'; properties: { sessionID: string } };
           if (idleEvent.properties.sessionID === session.id) {
+            session.id = turnSessionId;
+            yield {
+              type: 'result',
+              subtype: 'success',
+              result: turnResultText || undefined,
+            };
+            turnResultEmitted = true;
             turnCompleted = true;
             ipcPolling = false;
             break;
@@ -1206,12 +1262,14 @@ export class OpenCodeAdapter implements AgentAdapter {
 
       log(`Turn ${turnCount} completed, lastMessageId: ${lastMessageId || 'none'}`);
 
-      // Yield a result message for this turn if no result was emitted
-      yield {
-        type: 'result',
-        subtype: 'success',
-        result: undefined,
-      };
+      // If the stream ended without idle/error, emit a fallback success.
+      if (!turnResultEmitted) {
+        yield {
+          type: 'result',
+          subtype: 'success',
+          result: turnResultText || undefined,
+        };
+      }
 
       // If close was requested during the turn, exit immediately
       if (closeRequested) {
@@ -1221,9 +1279,10 @@ export class OpenCodeAdapter implements AgentAdapter {
 
       // Process any pending messages that arrived during the turn
       if (pendingMessages.length > 0) {
+        const pendingCount = pendingMessages.length;
         prompt = pendingMessages.join('\n');
         pendingMessages.length = 0;
-        log(`Processing ${pendingMessages.length} pending messages from turn`);
+        log(`Processing ${pendingCount} pending messages from turn`);
         continue;
       }
 

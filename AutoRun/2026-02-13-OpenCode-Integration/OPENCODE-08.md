@@ -33,7 +33,7 @@ Ensure OpenCode adapter produces output in the same format as Claude SDK, mainta
   - `container/agent-runner/src/index.ts` now reuses the adapter's marker writer so OpenCode and Claude paths emit the same framed output contract.
   - Added host parsing coverage in `src/container-runner.test.ts` for marker-delimited JSON with surrounding stdout noise.
 
-- [ ] Map OpenCode event types to output emissions:
+- [x] Map OpenCode event types to output emissions:
 
   ```typescript
   async *processEvents(events: EventStream) {
@@ -73,6 +73,15 @@ Ensure OpenCode adapter produces output in the same format as Claude SDK, mainta
     }
   }
   ```
+  - Implemented in `container/agent-runner/src/sdk-adapter/opencode-adapter.ts` inside `runMultiTurnQuery()`:
+    - `session.created` now updates the tracked session ID for subsequent turn output.
+    - `message.part.updated` text chunks are accumulated into a per-turn result buffer.
+    - `session.idle` emits a single `result/success` message with the accumulated text.
+    - `session.error` emits a single `result/error` message with normalized error detail.
+    - Legacy `message.updated`-derived result messages are suppressed in this path to avoid duplicate outputs.
+  - Added coverage in `container/agent-runner/src/sdk-adapter/opencode-adapter.test.ts` for:
+    - streamed text chunk accumulation + idle completion mapping,
+    - session error mapping to `result/error`.
 
 - [ ] Handle streaming text chunks for real-time output:
   - OpenCode streams `part.updated` events with incremental text
