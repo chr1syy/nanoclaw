@@ -151,8 +151,19 @@ export function initDatabase(): void {
 
 /** @internal - for tests only. Creates a fresh in-memory database. */
 export function _initTestDatabase(): void {
+  _closeTestDatabase();
   db = new Database(':memory:');
   createSchema(db);
+}
+
+/** @internal - for tests only. Closes the active test database handle. */
+export function _closeTestDatabase(): void {
+  if (!db) return;
+  try {
+    db.close();
+  } catch {
+    /* ignore close errors in tests */
+  }
 }
 
 /**

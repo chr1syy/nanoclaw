@@ -11,12 +11,13 @@
  * produces IPC files that the host watcher correctly processes.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
 import {
+  _closeTestDatabase,
   _initTestDatabase,
   createTask,
   getAllTasks,
@@ -73,6 +74,10 @@ beforeEach(() => {
     getAvailableGroups: () => [],
     writeGroupsSnapshot: () => {},
   };
+});
+
+afterAll(() => {
+  _closeTestDatabase();
 });
 
 /**

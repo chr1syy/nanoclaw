@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 
 import {
+  _closeTestDatabase,
   _initTestDatabase,
   createTask,
   deleteTask,
@@ -19,6 +20,10 @@ import { RegisteredGroup } from './types.js';
 
 beforeEach(() => {
   _initTestDatabase();
+});
+
+afterAll(() => {
+  _closeTestDatabase();
 });
 
 // Helper to store a message using the normalized NewMessage interface

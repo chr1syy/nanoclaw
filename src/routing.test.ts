@@ -1,11 +1,20 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 
-import { _initTestDatabase, getAllChats, storeChatMetadata } from './db.js';
+import {
+  _closeTestDatabase,
+  _initTestDatabase,
+  getAllChats,
+  storeChatMetadata,
+} from './db.js';
 import { getAvailableGroups, _setRegisteredGroups } from './index.js';
 
 beforeEach(() => {
   _initTestDatabase();
   _setRegisteredGroups({});
+});
+
+afterAll(() => {
+  _closeTestDatabase();
 });
 
 // --- JID ownership patterns ---

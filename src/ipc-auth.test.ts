@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 
 import {
+  _closeTestDatabase,
   _initTestDatabase,
   createTask,
   getAllTasks,
@@ -62,6 +63,10 @@ beforeEach(() => {
     getAvailableGroups: () => [],
     writeGroupsSnapshot: () => {},
   };
+});
+
+afterAll(() => {
+  _closeTestDatabase();
 });
 
 // --- schedule_task authorization ---
