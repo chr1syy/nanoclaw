@@ -9,7 +9,7 @@ Create comprehensive documentation for the OpenCode integration, including a mig
 
 ## Tasks
 
-- [ ] Update `README.md` with OpenCode support information:
+- [x] Update `README.md` with OpenCode support information:
 
   Add section:
   ```markdown

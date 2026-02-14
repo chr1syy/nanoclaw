@@ -115,13 +115,34 @@ Skills we'd love to see:
 - [Claude Code](https://claude.ai/download)
 - [Apple Container](https://github.com/apple/container) (macOS) or [Docker](https://docker.com/products/docker-desktop) (macOS/Linux)
 
+## SDK Backend Options
+
+NanoClaw supports two SDK backends:
+
+| Backend | Best For | Models |
+|---------|----------|--------|
+| Claude SDK (default) | Maximum compatibility with upstream | Claude only |
+| OpenCode | Multi-model support, open-source | 75+ models |
+
+### Using OpenCode Backend
+
+Set environment variable:
+```bash
+NANOCLAW_SDK_BACKEND=opencode
+```
+
+Configure your preferred model:
+```bash
+NANOCLAW_OPENCODE_MODEL=anthropic/claude-sonnet-4-20250514
+```
+
 ## Model Selection
 
 When using the OpenCode backend (`NANOCLAW_SDK_BACKEND=opencode`), you can configure which model to use:
 
 **Global default** (set in `.env`):
 ```bash
-NANOCLAW_MODEL=anthropic/claude-sonnet-4-20250514
+NANOCLAW_OPENCODE_MODEL=anthropic/claude-sonnet-4-20250514
 ```
 
 **Per-group override**: Set the `model` field in a group's containerConfig via the database.
