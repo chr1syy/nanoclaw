@@ -2,7 +2,7 @@
  * OpenCode SDK Adapter
  * Wraps the @opencode-ai/sdk package for client/server architecture
  *
- * This adapter connects to an OpenCode server (started via createOpencodeServer)
+ * This adapter connects to an OpenCode server started by container/entrypoint.sh
  * and normalizes events to the AgentMessage format used by NanoClaw.
  *
  * Multi-turn conversation support:
@@ -13,8 +13,6 @@
 
 import fs from 'fs';
 import path from 'path';
-import { createOpencodeServer } from '@opencode-ai/sdk/server';
-import { generateConfig } from '../config-generator.js';
 import {
   OpencodeClient,
   createOpencodeClient,
@@ -635,20 +633,20 @@ function formatSessionTerminalResult(event: { type: string; properties?: Record<
  * translating between NanoClaw's interface and OpenCode's client/server API.
  */
 export class OpenCodeAdapter implements AgentAdapter {
-  private serverUrl?: string;
-  private serverClose?: () => void;
   private client?: OpencodeClient;
   private initialized = false;
   private port: number;
   private cwd: string;
+  private readonly baseUrl: string;
 
   constructor(options?: { port?: number; cwd?: string }) {
     this.port = options?.port ?? DEFAULT_PORT;
     this.cwd = options?.cwd ?? '/workspace/group';
+    this.baseUrl = `http://127.0.0.1:${this.port}`;
   }
 
   /**
-   * Initialize the OpenCode server and client connection.
+   * Initialize the OpenCode client connection.
    * This is called lazily on first use.
    */
   private async ensureInitialized(): Promise<void> {
@@ -656,39 +654,33 @@ export class OpenCodeAdapter implements AgentAdapter {
       return;
     }
 
-    // Generate OpenCode config from template before starting server
-    // This substitutes environment variables in the template and writes to /workspace/.opencode.json
-    try {
-      generateConfig();
-    } catch (err) {
-      console.error('[OpenCodeAdapter] Failed to generate config:', err);
-      // Continue anyway - server may work with defaults
-    }
+    await this.assertServerReachable();
 
-    // Start the OpenCode server
-    // Session persistence is configured via dataDir in opencode.json.template
-    // which points to /home/node/.claude for persistence across container restarts
-    const server = await createOpencodeServer({
-      port: this.port,
-      config: {
-        // Permission settings - allow all by default since NanoClaw handles permissions
-        permission: {
-          edit: 'allow',
-          bash: 'allow',
-          webfetch: 'allow',
-        },
-      },
-    });
-
-    this.serverUrl = server.url;
-    this.serverClose = server.close;
-
-    // Create the client
+    // Create client for the server managed by container/entrypoint.sh.
     this.client = createOpencodeClient({
-      baseUrl: this.serverUrl,
+      baseUrl: this.baseUrl,
     });
 
     this.initialized = true;
+  }
+
+  private async assertServerReachable(): Promise<void> {
+    const healthUrl = `${this.baseUrl}/global/health`;
+    try {
+      const response = await fetch(healthUrl, {
+        signal: AbortSignal.timeout(2000),
+      });
+      if (!response.ok) {
+        throw new Error(`health check returned HTTP ${response.status}`);
+      }
+    } catch (error) {
+      const details = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `OpenCode server unavailable at ${this.baseUrl}. ` +
+        `Expected startup via container/entrypoint.sh. ` +
+        `Health check ${healthUrl} failed: ${details}`,
+      );
+    }
   }
 
   /**
@@ -1047,13 +1039,8 @@ export class OpenCodeAdapter implements AgentAdapter {
    * Clean up resources.
    */
   async dispose(): Promise<void> {
-    if (this.serverClose) {
-      this.serverClose();
-    }
     this.initialized = false;
     this.client = undefined;
-    this.serverUrl = undefined;
-    this.serverClose = undefined;
   }
 
   /**

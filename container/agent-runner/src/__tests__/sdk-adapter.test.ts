@@ -4,9 +4,15 @@ import type { AgentMessage, Session } from '../sdk-adapter/types.js';
 const { claudeQueryMock } = vi.hoisted(() => ({
   claudeQueryMock: vi.fn(),
 }));
+const { createOpencodeClientMock } = vi.hoisted(() => ({
+  createOpencodeClientMock: vi.fn(),
+}));
 
 vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
   query: claudeQueryMock,
+}));
+vi.mock('@opencode-ai/sdk/client', () => ({
+  createOpencodeClient: createOpencodeClientMock,
 }));
 
 import { ClaudeAdapter } from '../sdk-adapter/claude-adapter.js';
@@ -23,7 +29,9 @@ async function collectMessages(stream: AsyncGenerator<AgentMessage>): Promise<Ag
 describe('SDK Adapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
     delete process.env.NANOCLAW_SDK_BACKEND;
+    delete process.env.OPENCODE_SERVER_PORT;
   });
 
   describe('Claude Adapter', () => {
@@ -141,6 +149,56 @@ describe('SDK Adapter', () => {
   });
 
   describe('OpenCode Adapter', () => {
+    it('should connect to entrypoint-managed OpenCode server using configured port', async () => {
+      const fetchMock = vi.fn(async () => new Response('{}', { status: 200 }));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const createSessionMock = vi.fn(async () => ({
+        data: {
+          id: 'opencode-session-init',
+          projectID: 'project-init',
+          directory: '/workspace/group',
+          title: 'NanoClaw Session',
+          time: { created: Date.now() },
+        },
+      }));
+      createOpencodeClientMock.mockReturnValue({
+        session: { create: createSessionMock },
+      });
+
+      const adapter = new OpenCodeAdapter({ port: 5123 });
+      await adapter.createSession({ cwd: '/workspace/group' });
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://127.0.0.1:5123/global/health',
+        expect.any(Object),
+      );
+      expect(createOpencodeClientMock).toHaveBeenCalledWith({
+        baseUrl: 'http://127.0.0.1:5123',
+      });
+      expect(createSessionMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should fail gracefully when entrypoint-managed OpenCode server is unavailable', async () => {
+      const fetchMock = vi.fn(async () => {
+        throw new Error('connect ECONNREFUSED 127.0.0.1:4096');
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const adapter = new OpenCodeAdapter({ port: 4096 });
+      let thrown: unknown;
+      try {
+        await adapter.createSession({ cwd: '/workspace/group' });
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toContain('OpenCode server unavailable at http://127.0.0.1:4096');
+      expect((thrown as Error).message).toContain('container/entrypoint.sh');
+      expect(createOpencodeClientMock).not.toHaveBeenCalled();
+    });
+
     it('should create session with correct options', async () => {
       const createMock = vi.fn(async () => ({
         data: {
