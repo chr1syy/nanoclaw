@@ -158,6 +158,25 @@ NANOCLAW_OPENCODE_MODEL=anthropic/claude-sonnet-4-20250514
 
 The model format is `provider/model-id`. Check your provider's documentation for the full list of available models.
 
+## Health Endpoint
+
+NanoClaw exposes a local health endpoint for backend visibility:
+
+```bash
+curl http://127.0.0.1:8787/health
+```
+
+It reports:
+- Global SDK backend selection
+- Per-group backend overrides (Claude vs OpenCode)
+- OpenCode model assignment per group
+
+Configure the listen port with:
+
+```bash
+NANOCLAW_HEALTH_PORT=8787
+```
+
 ## Architecture
 
 ```

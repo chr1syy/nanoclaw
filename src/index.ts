@@ -1,15 +1,22 @@
 import { execSync } from 'child_process';
 import fs from 'fs';
+import http from 'http';
 import path from 'path';
 
 import {
   ASSISTANT_NAME,
   DATA_DIR,
   IDLE_TIMEOUT,
+  OPENCODE_MODEL,
   MAIN_GROUP_FOLDER,
   POLL_INTERVAL,
+  SDK_BACKEND,
   TRIGGER_PATTERN,
 } from './config.js';
+import {
+  resolveGroupBackendSelection,
+  startBackendHealthServer,
+} from './backend-health.js';
 import { WhatsAppChannel } from './channels/whatsapp.js';
 import {
   ContainerOutput,
@@ -49,6 +56,7 @@ let lastAgentTimestamp: Record<string, string> = {};
 let messageLoopRunning = false;
 
 let whatsapp: WhatsAppChannel;
+let healthServer: http.Server | null = null;
 const queue = new GroupQueue();
 
 function loadState(): void {
@@ -141,6 +149,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   }
 
   const prompt = formatMessages(missedMessages);
+  const backendSelection = resolveGroupBackendSelection(group);
 
   // Advance cursor so the piping path in startMessageLoop won't re-fetch
   // these messages. Save the old cursor so we can roll back on error.
@@ -150,7 +159,16 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   saveState();
 
   logger.info(
-    { group: group.name, messageCount: missedMessages.length },
+    {
+      group: group.name,
+      messageCount: missedMessages.length,
+      sdkBackend: backendSelection.sdkBackend,
+      sdkBackendSource: backendSelection.source,
+      openCodeModel:
+        backendSelection.sdkBackend === 'opencode'
+          ? backendSelection.openCodeModel
+          : undefined,
+    },
     'Processing messages',
   );
 
@@ -459,10 +477,24 @@ async function main(): Promise<void> {
   initDatabase();
   logger.info('Database initialized');
   loadState();
+  logger.info(
+    {
+      sdkBackend: SDK_BACKEND,
+      openCodeModel: OPENCODE_MODEL,
+      groupCount: Object.keys(registeredGroups).length,
+    },
+    'SDK backend configuration at startup',
+  );
+  healthServer = startBackendHealthServer(() => registeredGroups);
 
   // Graceful shutdown handlers
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'Shutdown signal received');
+    if (healthServer) {
+      await new Promise<void>((resolve) => {
+        healthServer?.close(() => resolve());
+      });
+    }
     await queue.shutdown(10000);
     await whatsapp.disconnect();
     process.exit(0);

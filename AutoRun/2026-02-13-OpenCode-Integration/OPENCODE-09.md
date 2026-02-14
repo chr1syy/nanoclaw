@@ -113,10 +113,15 @@ Create a unified configuration system that supports both SDK backends with clear
   ```
   - Added `docs/SDK-BACKENDS.md` with backend overview, global `NANOCLAW_SDK_BACKEND` configuration, per-group override paths (`/config sdk` and `register_group`), model selection examples, provider API key isolation guidance, and migration references.
 
-- [ ] Add runtime SDK backend detection and logging:
+- [x] Add runtime SDK backend detection and logging:
   - Log which backend is being used at startup
   - Log per-group backend selection when processing messages
   - Add health check endpoint that reports backend status
+  - Added `src/backend-health.ts` to centralize backend detection for runtime logging and health reporting.
+  - Updated `src/index.ts` startup flow to log global backend configuration (`sdkBackend`, `openCodeModel`) and start a local health server.
+  - Updated per-group `"Processing messages"` logs in `src/index.ts` to include `sdkBackend`, selection source (`global` vs `group`), and OpenCode model when applicable.
+  - Added `GET /health` and `GET /healthz` JSON endpoint reporting global backend state, per-group backend assignments, and summary counts.
+  - Added test coverage in `src/backend-health.test.ts` and extended `src/config.test.ts` for `NANOCLAW_HEALTH_PORT`.
 
 ## Acceptance Criteria
 - Global SDK selection via environment variable works

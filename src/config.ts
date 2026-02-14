@@ -55,12 +55,21 @@ export const TIMEZONE =
   process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 // SDK backend selection: 'claude' | 'opencode'
-// Controls which agent SDK the container uses for query execution.
-// - 'claude': Use official Claude Agent SDK (@anthropic-ai/claude-agent-sdk)
-// - 'opencode': Use OpenCode SDK (@opencode-ai/sdk) for alternative backends
-// Default: 'claude'
-export const SDK_BACKEND = (
-  process.env.NANOCLAW_SDK_BACKEND?.toLowerCase() === 'opencode'
-    ? 'opencode'
-    : 'claude'
-) as 'claude' | 'opencode';
+const rawSdkBackend = process.env.NANOCLAW_SDK_BACKEND || 'claude';
+if (rawSdkBackend !== 'claude' && rawSdkBackend !== 'opencode') {
+  throw new Error(
+    `Invalid SDK_BACKEND: ${rawSdkBackend}. Must be 'claude' or 'opencode'`,
+  );
+}
+export const SDK_BACKEND = rawSdkBackend as 'claude' | 'opencode';
+export const OPENCODE_MODEL =
+  process.env.NANOCLAW_OPENCODE_MODEL ||
+  'anthropic/claude-sonnet-4-20250514';
+export const OPENCODE_SERVER_PORT = parseInt(
+  process.env.NANOCLAW_OPENCODE_PORT || '4096',
+  10,
+);
+export const HEALTH_PORT = parseInt(
+  process.env.NANOCLAW_HEALTH_PORT || '8787',
+  10,
+);
