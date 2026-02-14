@@ -44,8 +44,9 @@ export function createAdapter(backend?: SdkBackend): AgentAdapter {
     case 'opencode':
       return createOpenCodeAdapter();
     case 'claude':
-    default:
       return createClaudeAdapter();
+    default:
+      throw new Error(`Invalid SDK backend: ${String(selectedBackend)}`);
   }
 }
 

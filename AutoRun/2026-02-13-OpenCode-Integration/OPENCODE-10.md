@@ -9,7 +9,7 @@ Comprehensive testing of both SDK backends to ensure feature parity and backward
 
 ## Tasks
 
-- [ ] Create unit tests for the SDK adapter abstraction layer in `container/agent-runner/src/__tests__/`:
+- [x] Create unit tests for the SDK adapter abstraction layer in `container/agent-runner/src/__tests__/`:
 
   `sdk-adapter.test.ts`:
   ```typescript
@@ -35,6 +35,7 @@ Comprehensive testing of both SDK backends to ensure feature parity and backward
     });
   });
   ```
+  - Completed in `container/agent-runner/src/__tests__/sdk-adapter.test.ts` with Claude adapter, OpenCode adapter, and adapter factory coverage.
 
 - [ ] Create integration tests for MCP tools with both backends:
 
