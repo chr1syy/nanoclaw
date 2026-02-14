@@ -46,7 +46,9 @@ Create comprehensive documentation for the OpenCode integration, including a mig
   - Agent configuration
   - Troubleshooting guide
 
-- [ ] Create `docs/MIGRATION.md` for users switching from Claude SDK to OpenCode:
+- [x] Create `docs/MIGRATION.md` for users switching from Claude SDK to OpenCode:
+
+  Notes (2026-02-14): Added `docs/MIGRATION.md` with prerequisites, staged migration strategy, tested rollout steps (backup/env update/rebuild/per-group validation), monitoring checklist, and explicit rollback procedure back to Claude backend.
 
   ```markdown
   # Migrating to OpenCode Backend
