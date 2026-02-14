@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
+import { exec } from 'child_process';
 
 // Sentinel markers must match container-runner.ts
 const OUTPUT_START_MARKER = '---NANOCLAW_OUTPUT_START---';
@@ -106,6 +107,7 @@ function emitOutputMarker(proc: ReturnType<typeof createFakeProcess>, output: Co
 describe('container-runner timeout behavior', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.clearAllMocks();
     fakeProc = createFakeProcess();
   });
 
@@ -146,6 +148,58 @@ describe('container-runner timeout behavior', () => {
     expect(result.newSessionId).toBe('session-123');
     expect(onOutput).toHaveBeenCalledWith(
       expect.objectContaining({ result: 'Here is my response' }),
+    );
+  });
+
+  it('resets hard timeout when OpenCode-style output marker is emitted', async () => {
+    const onOutput = vi.fn(async () => {});
+    const mockedExec = vi.mocked(exec);
+    const resultPromise = runContainerAgent(
+      testGroup,
+      testInput,
+      () => {},
+      onOutput,
+    );
+
+    // Let most of the initial timeout window elapse.
+    await vi.advanceTimersByTimeAsync(1_700_000);
+
+    // OpenCode emits markers when a turn reaches session.idle.
+    emitOutputMarker(fakeProc, {
+      status: 'success',
+      result: 'Turn completed',
+      newSessionId: 'session-reset',
+    });
+    await vi.advanceTimersByTimeAsync(10);
+
+    // Move past the original timeout deadline: should NOT stop yet.
+    await vi.advanceTimersByTimeAsync(150_000);
+    expect(mockedExec).not.toHaveBeenCalled();
+
+    // Reach just before the reset deadline: still running.
+    await vi.advanceTimersByTimeAsync(1_679_000);
+    expect(mockedExec).not.toHaveBeenCalled();
+
+    // Cross the reset deadline: idle cleanup timeout should trigger now.
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(mockedExec).toHaveBeenCalledTimes(1);
+    expect(mockedExec.mock.calls[0]?.[0]).toContain('container stop');
+
+    fakeProc.emit('close', 137);
+    await vi.advanceTimersByTimeAsync(10);
+
+    const result = await resultPromise;
+    expect(result).toEqual({
+      status: 'success',
+      result: null,
+      newSessionId: 'session-reset',
+    });
+    expect(onOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'success',
+        result: 'Turn completed',
+        newSessionId: 'session-reset',
+      }),
     );
   });
 
@@ -229,5 +283,91 @@ describe('container-runner timeout behavior', () => {
         newSessionId: 'session-noise',
       }),
     );
+  });
+
+  it('streams OpenCode timeout, abort, and API error markers to onOutput', async () => {
+    const onOutput = vi.fn(async () => {});
+    const resultPromise = runContainerAgent(
+      testGroup,
+      testInput,
+      () => {},
+      onOutput,
+    );
+
+    fakeProc.stdout.push(
+      `${OUTPUT_START_MARKER}\n` +
+        '{"status":"timeout","result":"OpenCode timeout: No activity for 30 minutes","newSessionId":"session-timeout"}\n' +
+        `${OUTPUT_END_MARKER}\n`,
+    );
+    fakeProc.stdout.push(
+      `${OUTPUT_START_MARKER}\n` +
+        '{"status":"error","result":"OpenCode aborted: User cancelled operation","newSessionId":"session-timeout"}\n' +
+        `${OUTPUT_END_MARKER}\n`,
+    );
+    fakeProc.stdout.push(
+      `${OUTPUT_START_MARKER}\n` +
+        '{"status":"error","result":"OpenCode error: rate_limit - Too many requests","newSessionId":"session-timeout"}\n' +
+        `${OUTPUT_END_MARKER}\n`,
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+
+    const result = await resultPromise;
+    expect(result).toEqual({
+      status: 'success',
+      result: null,
+      newSessionId: 'session-timeout',
+    });
+
+    expect(onOutput).toHaveBeenCalledTimes(3);
+    expect(onOutput).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        status: 'timeout',
+        result: 'OpenCode timeout: No activity for 30 minutes',
+        newSessionId: 'session-timeout',
+      }),
+    );
+    expect(onOutput).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        status: 'error',
+        result: 'OpenCode aborted: User cancelled operation',
+      }),
+    );
+    expect(onOutput).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        status: 'error',
+        result: 'OpenCode error: rate_limit - Too many requests',
+      }),
+    );
+  });
+
+  it('parses OpenCode timeout marker in legacy mode (without onOutput)', async () => {
+    const resultPromise = runContainerAgent(
+      testGroup,
+      testInput,
+      () => {},
+    );
+
+    fakeProc.stdout.push(
+      `${OUTPUT_START_MARKER}\n` +
+        '{"status":"timeout","result":"OpenCode timeout: No activity for 30 minutes","newSessionId":"legacy-timeout"}\n' +
+        `${OUTPUT_END_MARKER}\n`,
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+
+    const result = await resultPromise;
+    expect(result).toEqual({
+      status: 'timeout',
+      result: 'OpenCode timeout: No activity for 30 minutes',
+      newSessionId: 'legacy-timeout',
+    });
   });
 });

@@ -120,17 +120,27 @@ Ensure OpenCode adapter produces output in the same format as Claude SDK, mainta
     - `OpenCode aborted: <message>`.
   - Added coverage in `container/agent-runner/src/sdk-adapter/opencode-adapter.test.ts` for timeout and abort event mappings and updated error mapping expectation.
 
-- [ ] Test output parsing on host side:
+- [x] Test output parsing on host side:
   - Verify `container-runner.ts` correctly parses OpenCode output
   - Check marker detection works with both backends
   - Test error scenarios: timeout, abort, API errors
   - Verify `onOutput` callback receives correct data
+  - Added host-side parsing coverage in `src/container-runner.test.ts` for OpenCode terminal result markers:
+    - streaming mode now verifies `onOutput` receives `timeout` and `error` payloads for timeout, abort, and API-error style messages,
+    - legacy parse mode (without `onOutput`) now verifies marker-delimited `status: "timeout"` payloads parse correctly.
+  - Updated host `ContainerOutput` contract in `src/container-runner.ts` to include `status: 'timeout'` so parsed OpenCode timeout results are type-safe.
+  - Verified with `npm test -- src/container-runner.test.ts` (6/6 passing).
 
-- [ ] Handle the activity timeout reset behavior:
+- [x] Handle the activity timeout reset behavior:
   - Current behavior: OUTPUT_MARKER resets idle timeout
   - OpenCode: emit markers on `session.idle` (equivalent)
   - Verify host's activity detection works with OpenCode output pattern
   - Test 30-minute idle cleanup triggers correctly
+  - Added host-side regression coverage in `src/container-runner.test.ts` (`resets hard timeout when OpenCode-style output marker is emitted`) to verify:
+    - marker-framed stdout activity resets the hard timeout window,
+    - the original deadline no longer triggers cleanup,
+    - idle cleanup (`container stop`) fires only after 30-minute idle window from the latest marker,
+    - timeout-after-output still resolves as `success` with tracked `newSessionId`.
 
 ## Acceptance Criteria
 - Output format is identical between Claude and OpenCode backends
