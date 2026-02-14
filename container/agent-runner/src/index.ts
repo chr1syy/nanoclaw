@@ -34,7 +34,7 @@ import {
   type ContainerOutput,
 } from './sdk-adapter/index.js';
 
-interface ContainerInput {
+export interface ContainerInput {
   prompt: string;
   sessionId?: string;
   groupFolder: string;
@@ -452,7 +452,7 @@ async function runQuery(
  * Run the agent using OpenCode SDK backend.
  * Uses the adapter's built-in multi-turn support with IPC polling.
  */
-async function runWithOpenCodeBackend(
+export async function runWithOpenCodeBackend(
   containerInput: ContainerInput,
   initialPrompt: string
 ): Promise<void> {
@@ -565,7 +565,7 @@ async function runWithOpenCodeBackend(
 /**
  * Run the agent using Claude SDK backend (original implementation).
  */
-async function runWithClaudeBackend(
+export async function runWithClaudeBackend(
   containerInput: ContainerInput,
   initialPrompt: string,
   mcpServerPath: string
@@ -611,22 +611,7 @@ async function runWithClaudeBackend(
   }
 }
 
-async function main(): Promise<void> {
-  let containerInput: ContainerInput;
-
-  try {
-    const stdinData = await readStdin();
-    containerInput = JSON.parse(stdinData);
-    log(`Received input for group: ${containerInput.groupFolder}`);
-  } catch (err) {
-    writeOutput({
-      status: 'error',
-      result: null,
-      error: `Failed to parse input: ${err instanceof Error ? err.message : String(err)}`
-    });
-    process.exit(1);
-  }
-
+export async function runContainer(containerInput: ContainerInput): Promise<void> {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const mcpServerPath = path.join(__dirname, 'ipc-mcp-stdio.js');
 
@@ -650,12 +635,32 @@ async function main(): Promise<void> {
   const backend = getSdkBackend();
   log(`SDK backend: ${backend}`);
 
+  if (backend === 'opencode') {
+    await runWithOpenCodeBackend(containerInput, prompt);
+  } else {
+    await runWithClaudeBackend(containerInput, prompt, mcpServerPath);
+  }
+}
+
+async function main(): Promise<void> {
+  let containerInput: ContainerInput;
+
   try {
-    if (backend === 'opencode') {
-      await runWithOpenCodeBackend(containerInput, prompt);
-    } else {
-      await runWithClaudeBackend(containerInput, prompt, mcpServerPath);
-    }
+    const stdinData = await readStdin();
+    containerInput = JSON.parse(stdinData);
+    log(`Received input for group: ${containerInput.groupFolder}`);
+  } catch (err) {
+    writeOutput({
+      status: 'error',
+      result: null,
+      error: `Failed to parse input: ${err instanceof Error ? err.message : String(err)}`
+    });
+    process.exit(1);
+    return;
+  }
+
+  try {
+    await runContainer(containerInput);
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     log(`Agent error: ${errorMessage}`);
@@ -669,4 +674,6 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+if (!process.env.VITEST) {
+  main();
+}

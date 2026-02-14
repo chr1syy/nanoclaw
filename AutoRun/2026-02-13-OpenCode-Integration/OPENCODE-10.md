@@ -59,7 +59,7 @@ Comprehensive testing of both SDK backends to ensure feature parity and backward
   ```
   - Completed in `container/agent-runner/src/__tests__/mcp-integration.test.ts` with backend-parameterized MCP tool coverage for IPC writes, task controls, list filtering, and main/non-main group access rules.
 
-- [ ] Create end-to-end tests for the full message flow:
+- [x] Create end-to-end tests for the full message flow:
 
   `e2e/message-flow.test.ts`:
   ```typescript
@@ -73,6 +73,7 @@ Comprehensive testing of both SDK backends to ensure feature parity and backward
     it('scheduled tasks execute with correct context');
   });
   ```
+  - Completed in `container/agent-runner/src/__tests__/e2e/message-flow.test.ts` with backend-specific message-flow coverage for Claude/OpenCode processing, multi-turn behavior, IPC follow-ups, resume/persistence semantics, and scheduled-task prompt context.
 
 - [ ] Create comparison tests to verify output equivalence:
 
