@@ -5,7 +5,14 @@
 
 export * from './types.js';
 export { ClaudeAdapter, createClaudeAdapter } from './claude-adapter.js';
-export { OpenCodeAdapter, createOpenCodeAdapter } from './opencode-adapter.js';
+export {
+  OpenCodeAdapter,
+  type ContainerOutput,
+  createOpenCodeAdapter,
+  OUTPUT_START_MARKER,
+  OUTPUT_END_MARKER,
+  writeOutput,
+} from './opencode-adapter.js';
 
 import type { AgentAdapter, SdkBackend } from './types.js';
 import { createClaudeAdapter } from './claude-adapter.js';

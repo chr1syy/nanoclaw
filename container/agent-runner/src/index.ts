@@ -26,10 +26,12 @@ import {
   createAdapter,
   getSdkBackend,
   OpenCodeAdapter,
+  writeOutput as writeAdapterOutput,
   type AgentAdapter,
   type Session,
   type SessionConfig,
   type AgentMessage,
+  type ContainerOutput,
 } from './sdk-adapter/index.js';
 
 interface ContainerInput {
@@ -40,13 +42,6 @@ interface ContainerInput {
   isMain: boolean;
   isScheduledTask?: boolean;
   model?: string; // Model override (e.g., "anthropic/claude-opus-4-20250514")
-}
-
-interface ContainerOutput {
-  status: 'success' | 'error';
-  result: string | null;
-  newSessionId?: string;
-  error?: string;
 }
 
 interface SessionEntry {
@@ -117,13 +112,8 @@ async function readStdin(): Promise<string> {
   });
 }
 
-const OUTPUT_START_MARKER = '---NANOCLAW_OUTPUT_START---';
-const OUTPUT_END_MARKER = '---NANOCLAW_OUTPUT_END---';
-
 function writeOutput(output: ContainerOutput): void {
-  console.log(OUTPUT_START_MARKER);
-  console.log(JSON.stringify(output));
-  console.log(OUTPUT_END_MARKER);
+  writeAdapterOutput(output);
 }
 
 function log(message: string): void {

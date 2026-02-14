@@ -199,4 +199,35 @@ describe('container-runner timeout behavior', () => {
     expect(result.status).toBe('success');
     expect(result.newSessionId).toBe('session-456');
   });
+
+  it('parses marker-delimited JSON even with surrounding stdout noise', async () => {
+    const onOutput = vi.fn(async () => {});
+    const resultPromise = runContainerAgent(
+      testGroup,
+      testInput,
+      () => {},
+      onOutput,
+    );
+
+    fakeProc.stdout.push('startup log line\n');
+    fakeProc.stdout.push(`${OUTPUT_START_MARKER}\n`);
+    fakeProc.stdout.push('{"status":"success","result":"Chunked response","newSessionId":"session-noise"}');
+    fakeProc.stdout.push(`\n${OUTPUT_END_MARKER}\n`);
+    fakeProc.stdout.push('trailing log line\n');
+
+    await vi.advanceTimersByTimeAsync(10);
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+
+    const result = await resultPromise;
+    expect(result.status).toBe('success');
+    expect(result.newSessionId).toBe('session-noise');
+    expect(onOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'success',
+        result: 'Chunked response',
+        newSessionId: 'session-noise',
+      }),
+    );
+  });
 });

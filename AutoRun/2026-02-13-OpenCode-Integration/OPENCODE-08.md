@@ -9,7 +9,7 @@ Ensure OpenCode adapter produces output in the same format as Claude SDK, mainta
 
 ## Tasks
 
-- [ ] Implement output marker protocol in OpenCode adapter to match existing format:
+- [x] Implement output marker protocol in OpenCode adapter to match existing format:
 
   Current Claude SDK output format (from `container-runner.ts`):
   ```typescript
@@ -29,6 +29,9 @@ Ensure OpenCode adapter produces output in the same format as Claude SDK, mainta
     console.log(OUTPUT_END_MARKER);
   }
   ```
+  - Completed in `container/agent-runner/src/sdk-adapter/opencode-adapter.ts` by exporting marker constants plus a shared `writeOutput()` implementation.
+  - `container/agent-runner/src/index.ts` now reuses the adapter's marker writer so OpenCode and Claude paths emit the same framed output contract.
+  - Added host parsing coverage in `src/container-runner.test.ts` for marker-delimited JSON with surrounding stdout noise.
 
 - [ ] Map OpenCode event types to output emissions:
 

@@ -38,6 +38,37 @@ import type {
 } from './types.js';
 
 /**
+ * Output protocol markers shared with the host container parser.
+ * Must match src/container-runner.ts exactly.
+ */
+export const OUTPUT_START_MARKER = '---NANOCLAW_OUTPUT_START---';
+export const OUTPUT_END_MARKER = '---NANOCLAW_OUTPUT_END---';
+
+/**
+ * Container output payload contract consumed by the host.
+ */
+export interface ContainerOutput {
+  status: 'success' | 'error' | 'timeout';
+  result: string | null;
+  newSessionId?: string;
+  error?: string;
+}
+
+/**
+ * Write a container output payload using sentinel markers.
+ * Exported from the OpenCode adapter so OpenCode integration always uses
+ * the same wire format expected by the host parser.
+ */
+export function writeOutput(
+  output: ContainerOutput,
+  writer: (line: string) => void = console.log,
+): void {
+  writer(OUTPUT_START_MARKER);
+  writer(JSON.stringify(output));
+  writer(OUTPUT_END_MARKER);
+}
+
+/**
  * Default port for OpenCode server.
  * Can be overridden via OPENCODE_SERVER_PORT environment variable.
  */
