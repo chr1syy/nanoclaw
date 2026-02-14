@@ -92,7 +92,7 @@ Ensure OpenCode adapter produces output in the same format as Claude SDK, mainta
   - Added per-part snapshot tracking so full-text snapshots append only unseen suffixes while preserving existing delta behavior.
   - Added regression coverage in `container/agent-runner/src/sdk-adapter/opencode-adapter.test.ts` to verify snapshot-style updates produce a single deduplicated final result on `session.idle`.
 
-- [ ] Implement error handling and timeout mapping:
+- [x] Implement error handling and timeout mapping:
 
   ```typescript
   // OpenCode error types → ContainerOutput status
@@ -110,6 +110,15 @@ Ensure OpenCode adapter produces output in the same format as Claude SDK, mainta
     });
   }
   ```
+  - Implemented terminal event normalization in `container/agent-runner/src/sdk-adapter/opencode-adapter.ts` for:
+    - `session.error` → `result/error`,
+    - `session.timeout` → `result/timeout`,
+    - `session.aborted` → `result/error`.
+  - Added `formatSessionTerminalResult()` to emit informative, prefixed messages:
+    - `OpenCode error: <code-or-name> - <message>`,
+    - `OpenCode timeout: <message>`,
+    - `OpenCode aborted: <message>`.
+  - Added coverage in `container/agent-runner/src/sdk-adapter/opencode-adapter.test.ts` for timeout and abort event mappings and updated error mapping expectation.
 
 - [ ] Test output parsing on host side:
   - Verify `container-runner.ts` correctly parses OpenCode output

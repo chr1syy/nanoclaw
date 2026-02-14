@@ -600,6 +600,34 @@ function normalizeEvent(event: OpenCodeEvent, sessionId: string): AgentMessage[]
   return messages;
 }
 
+const SESSION_TERMINAL_RESULT_SUBTYPE: Record<string, 'error' | 'timeout'> = {
+  'session.error': 'error',
+  'session.timeout': 'timeout',
+  'session.aborted': 'error',
+};
+
+function formatSessionTerminalResult(event: { type: string; properties?: Record<string, unknown> }): string {
+  const properties = event.properties ?? {};
+  const error = (properties.error as Record<string, unknown> | undefined) ?? {};
+  const errorData = (error.data as Record<string, unknown> | undefined) ?? {};
+
+  const code = error.code ?? error.name ?? null;
+  const message = errorData.message ?? error.message ?? properties.message ?? 'Unknown error';
+
+  switch (event.type) {
+    case 'session.timeout':
+      return `OpenCode timeout: ${String(message)}`;
+    case 'session.aborted':
+      return `OpenCode aborted: ${String(message)}`;
+    case 'session.error':
+    default:
+      if (code) {
+        return `OpenCode error: ${String(code)} - ${String(message)}`;
+      }
+      return `OpenCode error: ${String(message)}`;
+  }
+}
+
 /**
  * OpenCode SDK adapter implementation.
  *
@@ -1249,19 +1277,12 @@ export class OpenCodeAdapter implements AgentAdapter {
           yield msg;
         }
 
-        if (event.type === 'session.error') {
-          const errorEvent = event as {
-            type: 'session.error';
-            properties: { error?: { name?: string; data?: { message?: string } }; sessionID?: string };
-          };
-          const errorName = errorEvent.properties.error?.name;
-          const errorMessage = errorEvent.properties.error?.data?.message || 'Unknown error';
-          const formattedError = errorName ? `${errorName}: ${errorMessage}` : errorMessage;
-
+        const terminalEventType = (event as { type: string }).type;
+        if (terminalEventType in SESSION_TERMINAL_RESULT_SUBTYPE) {
           yield {
             type: 'result',
-            subtype: 'error',
-            result: formattedError,
+            subtype: SESSION_TERMINAL_RESULT_SUBTYPE[terminalEventType],
+            result: formatSessionTerminalResult(event as { type: string; properties?: Record<string, unknown> }),
           };
           turnResultEmitted = true;
           turnCompleted = true;

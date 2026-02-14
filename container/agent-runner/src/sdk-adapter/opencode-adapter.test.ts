@@ -146,7 +146,7 @@ describe('OpenCodeAdapter runMultiTurnQuery event mapping', () => {
         properties: {
           sessionID: 'session-2',
           error: {
-            name: 'SessionError',
+            code: 'MODEL_ERROR',
             data: { message: 'Something failed' },
           },
         },
@@ -171,7 +171,79 @@ describe('OpenCodeAdapter runMultiTurnQuery event mapping', () => {
       expect.objectContaining({
         type: 'result',
         subtype: 'error',
-        result: 'SessionError: Something failed',
+        result: 'OpenCode error: MODEL_ERROR - Something failed',
+      }),
+    );
+  });
+
+  it('maps session.timeout to a timeout result message', async () => {
+    async function* stream() {
+      yield {
+        type: 'session.timeout',
+        properties: {
+          sessionID: 'session-3',
+          error: {
+            data: { message: 'No activity for 30 minutes' },
+          },
+        },
+      };
+    }
+
+    const adapter = new OpenCodeAdapter() as unknown as OpenCodeAdapter;
+    (adapter as unknown as { initialized: boolean }).initialized = true;
+    (adapter as unknown as { client: unknown }).client = {
+      session: { prompt: vi.fn(async () => undefined) },
+      event: { subscribe: vi.fn(async () => ({ stream: stream() })) },
+    };
+
+    const session: Session = {
+      id: 'session-3',
+      config: { cwd: '/workspace/group' },
+    };
+
+    const messages = await collectUntilResult(adapter, session);
+
+    expect(messages).toContainEqual(
+      expect.objectContaining({
+        type: 'result',
+        subtype: 'timeout',
+        result: 'OpenCode timeout: No activity for 30 minutes',
+      }),
+    );
+  });
+
+  it('maps session.aborted to an error result message', async () => {
+    async function* stream() {
+      yield {
+        type: 'session.aborted',
+        properties: {
+          sessionID: 'session-4',
+          error: {
+            data: { message: 'Session aborted by user' },
+          },
+        },
+      };
+    }
+
+    const adapter = new OpenCodeAdapter() as unknown as OpenCodeAdapter;
+    (adapter as unknown as { initialized: boolean }).initialized = true;
+    (adapter as unknown as { client: unknown }).client = {
+      session: { prompt: vi.fn(async () => undefined) },
+      event: { subscribe: vi.fn(async () => ({ stream: stream() })) },
+    };
+
+    const session: Session = {
+      id: 'session-4',
+      config: { cwd: '/workspace/group' },
+    };
+
+    const messages = await collectUntilResult(adapter, session);
+
+    expect(messages).toContainEqual(
+      expect.objectContaining({
+        type: 'result',
+        subtype: 'error',
+        result: 'OpenCode aborted: Session aborted by user',
       }),
     );
   });
