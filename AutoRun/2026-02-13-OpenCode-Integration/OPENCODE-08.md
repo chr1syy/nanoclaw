@@ -83,11 +83,14 @@ Ensure OpenCode adapter produces output in the same format as Claude SDK, mainta
     - streamed text chunk accumulation + idle completion mapping,
     - session error mapping to `result/error`.
 
-- [ ] Handle streaming text chunks for real-time output:
+- [x] Handle streaming text chunks for real-time output:
   - OpenCode streams `part.updated` events with incremental text
   - Accumulate text until `session.idle` signals completion
   - For long responses, consider emitting intermediate results
   - Match existing behavior: one result per agent turn
+  - Updated `container/agent-runner/src/sdk-adapter/opencode-adapter.ts` turn accumulator to handle both delta-based and snapshot-based `message.part.updated` text streams without duplicate output.
+  - Added per-part snapshot tracking so full-text snapshots append only unseen suffixes while preserving existing delta behavior.
+  - Added regression coverage in `container/agent-runner/src/sdk-adapter/opencode-adapter.test.ts` to verify snapshot-style updates produce a single deduplicated final result on `session.idle`.
 
 - [ ] Implement error handling and timeout mapping:
 

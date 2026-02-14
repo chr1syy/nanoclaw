@@ -1056,6 +1056,7 @@ export class OpenCodeAdapter implements AgentAdapter {
     if (!session.id) {
       throw new Error('Session ID is required for runMultiTurnQuery');
     }
+    let activeSessionId: string = session.id;
 
     // Clean up stale _close sentinel from previous runs
     try { fs.unlinkSync(IPC_INPUT_CLOSE_SENTINEL); } catch { /* ignore */ }
@@ -1087,7 +1088,7 @@ export class OpenCodeAdapter implements AgentAdapter {
 
       // Send the prompt to the session
       await this.client.session.prompt({
-        path: { id: session.id },
+        path: { id: activeSessionId },
         query: {
           directory: session.config.cwd || this.cwd,
         },
@@ -1105,7 +1106,7 @@ export class OpenCodeAdapter implements AgentAdapter {
         yield {
           type: 'system',
           subtype: 'init',
-          session_id: session.id,
+          session_id: activeSessionId,
         };
       }
 
@@ -1135,7 +1136,8 @@ export class OpenCodeAdapter implements AgentAdapter {
       let closeRequested = false;
       let turnResultEmitted = false;
       let turnResultText = '';
-      let turnSessionId = session.id;
+      const textPartSnapshots = new Map<string, string>();
+      let turnSessionId: string = activeSessionId;
 
       // Poll IPC during the query for messages that should be injected
       let ipcPolling = true;
@@ -1186,7 +1188,7 @@ export class OpenCodeAdapter implements AgentAdapter {
           const props = event.properties as Record<string, unknown>;
           const info = props.info as Record<string, unknown> | undefined;
           const eventSessionId = props.sessionID ?? info?.id;
-          if (event.type !== 'session.created' && eventSessionId && eventSessionId !== session.id) {
+          if (event.type !== 'session.created' && eventSessionId && eventSessionId !== activeSessionId) {
             continue;
           }
         }
@@ -1195,12 +1197,37 @@ export class OpenCodeAdapter implements AgentAdapter {
         if (event.type === 'message.part.updated') {
           const partEvent = event as {
             type: 'message.part.updated';
-            properties: { part?: { type?: string; text?: string }; delta?: string };
+            properties: { part?: { id?: string; type?: string; text?: string }; delta?: string };
           };
           if (partEvent.properties.part?.type === 'text') {
-            const textDelta = partEvent.properties.delta ?? partEvent.properties.part.text ?? '';
-            if (textDelta) {
-              turnResultText += textDelta;
+            const partId = partEvent.properties.part.id ?? '__default_text_part__';
+            const snapshotText = partEvent.properties.part.text ?? '';
+            const eventDelta = partEvent.properties.delta;
+
+            if (eventDelta) {
+              turnResultText += eventDelta;
+
+              // Keep snapshot state in sync when both delta and full text are available.
+              if (snapshotText) {
+                textPartSnapshots.set(partId, snapshotText);
+              } else {
+                const previous = textPartSnapshots.get(partId) ?? '';
+                textPartSnapshots.set(partId, previous + eventDelta);
+              }
+            } else if (snapshotText) {
+              // Some streams send full text snapshots rather than explicit deltas.
+              // Append only the new suffix to avoid duplicating already-emitted text.
+              const previous = textPartSnapshots.get(partId) ?? '';
+              if (snapshotText.startsWith(previous)) {
+                const suffix = snapshotText.slice(previous.length);
+                if (suffix) {
+                  turnResultText += suffix;
+                }
+              } else {
+                // Fallback for non-prefix rewrites: append latest snapshot.
+                turnResultText += snapshotText;
+              }
+              textPartSnapshots.set(partId, snapshotText);
             }
           }
         }
@@ -1214,7 +1241,7 @@ export class OpenCodeAdapter implements AgentAdapter {
         }
 
         // Normalize and yield messages (result is emitted from terminal events below).
-        const messages = normalizeEvent(event as OpenCodeEvent, session.id);
+        const messages = normalizeEvent(event as OpenCodeEvent, activeSessionId);
         for (const msg of messages) {
           if (msg.type === 'result') {
             continue;
@@ -1245,8 +1272,9 @@ export class OpenCodeAdapter implements AgentAdapter {
         // Check for session.idle - this turn is complete
         if (event.type === 'session.idle') {
           const idleEvent = event as { type: 'session.idle'; properties: { sessionID: string } };
-          if (idleEvent.properties.sessionID === session.id) {
-            session.id = turnSessionId;
+          if (idleEvent.properties.sessionID === activeSessionId) {
+            activeSessionId = turnSessionId;
+            session.id = activeSessionId;
             yield {
               type: 'result',
               subtype: 'success',

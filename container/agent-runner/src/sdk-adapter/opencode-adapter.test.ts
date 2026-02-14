@@ -63,9 +63,9 @@ describe('OpenCodeAdapter runMultiTurnQuery event mapping', () => {
       };
     }
 
-    const adapter = new OpenCodeAdapter() as OpenCodeAdapter & { initialized: boolean; client: unknown };
-    adapter.initialized = true;
-    adapter.client = {
+    const adapter = new OpenCodeAdapter() as unknown as OpenCodeAdapter;
+    (adapter as unknown as { initialized: boolean }).initialized = true;
+    (adapter as unknown as { client: unknown }).client = {
       session: { prompt: vi.fn(async () => undefined) },
       event: { subscribe: vi.fn(async () => ({ stream: stream() })) },
     };
@@ -94,6 +94,51 @@ describe('OpenCodeAdapter runMultiTurnQuery event mapping', () => {
     expect(session.id).toBe('session-created');
   });
 
+  it('deduplicates snapshot-style text updates when delta is absent', async () => {
+    async function* stream() {
+      yield {
+        type: 'message.part.updated',
+        properties: {
+          sessionID: 'session-1',
+          part: { id: 'part-1', type: 'text', text: 'Hello' },
+        },
+      };
+      yield {
+        type: 'message.part.updated',
+        properties: {
+          sessionID: 'session-1',
+          part: { id: 'part-1', type: 'text', text: 'Hello world' },
+        },
+      };
+      yield {
+        type: 'session.idle',
+        properties: { sessionID: 'session-1' },
+      };
+    }
+
+    const adapter = new OpenCodeAdapter() as unknown as OpenCodeAdapter;
+    (adapter as unknown as { initialized: boolean }).initialized = true;
+    (adapter as unknown as { client: unknown }).client = {
+      session: { prompt: vi.fn(async () => undefined) },
+      event: { subscribe: vi.fn(async () => ({ stream: stream() })) },
+    };
+
+    const session: Session = {
+      id: 'session-1',
+      config: { cwd: '/workspace/group' },
+    };
+
+    const messages = await collectUntilResult(adapter, session);
+
+    expect(messages).toContainEqual(
+      expect.objectContaining({
+        type: 'result',
+        subtype: 'success',
+        result: 'Hello world',
+      }),
+    );
+  });
+
   it('maps session.error to an error result message', async () => {
     async function* stream() {
       yield {
@@ -108,9 +153,9 @@ describe('OpenCodeAdapter runMultiTurnQuery event mapping', () => {
       };
     }
 
-    const adapter = new OpenCodeAdapter() as OpenCodeAdapter & { initialized: boolean; client: unknown };
-    adapter.initialized = true;
-    adapter.client = {
+    const adapter = new OpenCodeAdapter() as unknown as OpenCodeAdapter;
+    (adapter as unknown as { initialized: boolean }).initialized = true;
+    (adapter as unknown as { client: unknown }).client = {
       session: { prompt: vi.fn(async () => undefined) },
       event: { subscribe: vi.fn(async () => ({ stream: stream() })) },
     };
