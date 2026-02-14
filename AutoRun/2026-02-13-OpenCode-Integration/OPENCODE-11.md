@@ -94,7 +94,9 @@ Create comprehensive documentation for the OpenCode integration, including a mig
   Set `NANOCLAW_SDK_BACKEND=claude` and restart.
   ```
 
-- [ ] Update `docs/REQUIREMENTS.md` with OpenCode architecture decisions:
+- [x] Update `docs/REQUIREMENTS.md` with OpenCode architecture decisions:
+
+  Notes (2026-02-14): Added `SDK Backend Strategy (Claude + OpenCode)` under `Architecture Decisions` in `docs/REQUIREMENTS.md`, documenting rationale for OpenCode support, Claude-as-default compatibility posture, adapter-contract design decisions, backend trade-offs, and future backend/parity considerations.
 
   Add section documenting:
   - Why OpenCode support was added
@@ -102,7 +104,9 @@ Create comprehensive documentation for the OpenCode integration, including a mig
   - Design decisions for the adapter pattern
   - Future considerations
 
-- [ ] Create `docs/TROUBLESHOOTING-OPENCODE.md`:
+- [x] Create `docs/TROUBLESHOOTING-OPENCODE.md`:
+
+  Notes (2026-02-14): Added `docs/TROUBLESHOOTING-OPENCODE.md` as a dedicated runbook with six common issue categories (startup failures, session persistence, MCP tool resolution, model authentication, performance differences, and behavior differences), each with symptoms, likely causes, validation checks, and concrete remediation steps.
 
   Common issues and solutions:
   - OpenCode server fails to start
