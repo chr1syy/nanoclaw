@@ -31,6 +31,31 @@ related:
   - `opencode-adapter.ts`: `52.13%` statements, `52.4%` lines
   - `index.ts`: `100%`
 
+## Stability Fix Validation (2026-02-14)
+- Host typecheck
+  - Command: `npm run typecheck`
+  - Outcome: pass (`tsc --noEmit` exited `0`)
+- Host targeted tests
+  - Command: `npm test -- src/config.test.ts src/container-runner.test.ts src/backend-health.test.ts`
+  - Outcome: pass (`3` files, `18` tests passed)
+- Agent-runner build
+  - Command: `cd container/agent-runner && npm run build`
+  - Outcome: pass (`tsc -p tsconfig.build.json` exited `0`)
+- Container image build
+  - Command: `./container/build.sh`
+  - Outcome: blocked (exit `127`: `container: command not found`)
+  - Actionable blocker: install/configure Apple Container CLI (`container`) on host, then rerun build
+- Claude backend smoke
+  - Command: `cd container/agent-runner && npx vitest run src/__tests__/e2e/message-flow.test.ts -t "processes WhatsApp message through Claude backend"`
+  - Outcome: pass (`1` test passed, `6` skipped)
+- OpenCode backend smoke
+  - Command: `cd container/agent-runner && npx vitest run src/__tests__/e2e/message-flow.test.ts -t "processes WhatsApp message through OpenCode backend"`
+  - Outcome: pass (`1` test passed, `6` skipped)
+
+Validation summary:
+- Green: host typecheck, host targeted tests, agent-runner build, Claude smoke, OpenCode smoke.
+- Blocked with actionable remediation: container image build (`container` CLI unavailable in this environment).
+
 ## Test Findings
 
 ### Parity Confirmed
