@@ -142,11 +142,17 @@ Comprehensive testing of both SDK backends to ensure feature parity and backward
   - Added `benchmark:sdk` script in `container/agent-runner/package.json` to run compiled benchmarks via `node --expose-gc dist/benchmarks/sdk-comparison.js`.
   - Added helper coverage in `container/agent-runner/src/__tests__/sdk-comparison-benchmark.test.ts` (3 passing tests) for benchmark math/timing primitives.
 
-- [ ] Document test results and any behavioral differences:
+- [x] Document test results and any behavioral differences:
   - Create `docs/SDK-COMPARISON.md` with test findings
   - Note any features that work differently between backends
   - Document known limitations of each backend
   - Provide migration guidance based on test results
+  - Completed in `docs/SDK-COMPARISON.md` with:
+    - executed test run summary (`44/44` targeted tests passing, `49/49` full runner suite passing),
+    - parity findings (adapter factory, MCP tools, E2E flow, output structure),
+    - explicit behavioral differences (tool mapping/subagent/session lifecycle),
+    - known limitations including benchmark runtime failure (`spawn node ENOENT`) and current adapter coverage gap (`55.65%`, below `>80%` target),
+    - migration guidance for backend selection, tool allowlists, and validation workflow.
 
 ## Acceptance Criteria
 - All unit tests pass for both adapters
