@@ -74,7 +74,8 @@ const DEFAULT_PORT = parseInt(process.env.OPENCODE_SERVER_PORT || '4096', 10);
 
 /**
  * Default model for OpenCode sessions.
- * Can be overridden via NANOCLAW_MODEL environment variable.
+ * Canonical override is NANOCLAW_OPENCODE_MODEL, with NANOCLAW_MODEL as
+ * backward-compatible fallback.
  * Format: provider/model-id (e.g., anthropic/claude-sonnet-4-20250514)
  */
 const DEFAULT_MODEL = 'anthropic/claude-sonnet-4-20250514';
@@ -96,12 +97,30 @@ function parseModelString(modelString: string): { providerID: string; modelID: s
   return { providerID, modelID };
 }
 
+function normalizeModelEnvValue(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/**
+ * Deterministic model precedence:
+ * NANOCLAW_OPENCODE_MODEL > NANOCLAW_MODEL > default.
+ */
+function resolveConfiguredModelString(): string {
+  return (
+    normalizeModelEnvValue(process.env.NANOCLAW_OPENCODE_MODEL) ||
+    normalizeModelEnvValue(process.env.NANOCLAW_MODEL) ||
+    DEFAULT_MODEL
+  );
+}
+
 /**
  * Get the configured model from environment or use default.
  * @returns Parsed model config or undefined
  */
 function getConfiguredModel(): { providerID: string; modelID: string } | undefined {
-  const modelString = process.env.NANOCLAW_MODEL || DEFAULT_MODEL;
+  const modelString = resolveConfiguredModelString();
   return parseModelString(modelString);
 }
 
@@ -693,8 +712,12 @@ export class OpenCodeAdapter implements AgentAdapter {
       throw new Error('OpenCode client not initialized');
     }
 
-    // Apply model configuration if not already set
-    // Priority: config.providerID/modelID > NANOCLAW_MODEL env > default
+    // Apply model configuration if not already set.
+    // Priority:
+    // config.providerID/modelID >
+    // NANOCLAW_OPENCODE_MODEL >
+    // NANOCLAW_MODEL >
+    // default.
     if (!config.providerID || !config.modelID) {
       const envModel = getConfiguredModel();
       if (envModel) {

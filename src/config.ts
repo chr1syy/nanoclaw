@@ -1,4 +1,5 @@
 import path from 'path';
+import { resolveOpenCodeModelFromEnv } from './opencode-model.js';
 
 export const ASSISTANT_NAME = process.env.ASSISTANT_NAME || 'Andy';
 export const POLL_INTERVAL = 2000;
@@ -62,9 +63,7 @@ if (rawSdkBackend !== 'claude' && rawSdkBackend !== 'opencode') {
   );
 }
 export const SDK_BACKEND = rawSdkBackend as 'claude' | 'opencode';
-export const OPENCODE_MODEL =
-  process.env.NANOCLAW_OPENCODE_MODEL ||
-  'anthropic/claude-sonnet-4-20250514';
+export const OPENCODE_MODEL = resolveOpenCodeModelFromEnv(process.env);
 export const OPENCODE_SERVER_PORT = parseInt(
   process.env.NANOCLAW_OPENCODE_PORT || '4096',
   10,

@@ -19,6 +19,7 @@ import {
 } from './config.js';
 import { logger } from './logger.js';
 import { validateAdditionalMounts } from './mount-security.js';
+import { resolveOpenCodeModelForGroup } from './opencode-model.js';
 import { RegisteredGroup } from './types.js';
 
 // Sentinel markers for robust output parsing (must match agent-runner)
@@ -68,10 +69,6 @@ function resolveSdkBackend(group: RegisteredGroup): 'claude' | 'opencode' {
   return sdkBackend;
 }
 
-function resolveOpenCodeModel(group: RegisteredGroup): string {
-  return group.containerConfig?.openCodeModel || OPENCODE_MODEL;
-}
-
 function parseEnvLine(line: string): [string, string] | null {
   const trimmed = line.trim();
   if (!trimmed || trimmed.startsWith('#')) return null;
@@ -88,7 +85,7 @@ function buildVolumeMounts(
   const homeDir = getHomeDir();
   const projectRoot = process.cwd();
   const sdkBackend = resolveSdkBackend(group);
-  const openCodeModel = resolveOpenCodeModel(group);
+  const openCodeModel = resolveOpenCodeModelForGroup(group, OPENCODE_MODEL);
 
   if (isMain) {
     // Main gets the entire project root mounted

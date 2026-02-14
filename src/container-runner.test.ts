@@ -401,6 +401,24 @@ describe('container-runner timeout behavior', () => {
     expect(String(envWrite?.[1])).toContain('NANOCLAW_OPENCODE_MODEL=openai/gpt-4.1');
   });
 
+  it('writes canonical and fallback model env vars from global OpenCode model when group override is unset', async () => {
+    const resultPromise = runContainerAgent(
+      testGroup,
+      testInput,
+      () => {},
+    );
+
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+
+    const writeCalls = vi.mocked(fs.writeFileSync).mock.calls;
+    const envWrite = writeCalls.find((c) => String(c[0]).endsWith('/env/test-group/env'));
+    expect(envWrite).toBeDefined();
+    expect(String(envWrite?.[1])).toContain('NANOCLAW_MODEL=anthropic/claude-sonnet-4-20250514');
+    expect(String(envWrite?.[1])).toContain('NANOCLAW_OPENCODE_MODEL=anthropic/claude-sonnet-4-20250514');
+  });
+
   it('rejects invalid per-group sdk backend values', async () => {
     const invalidGroup: RegisteredGroup = {
       ...testGroup,

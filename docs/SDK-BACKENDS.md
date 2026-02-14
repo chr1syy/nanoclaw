@@ -32,7 +32,9 @@ Use this document to configure global defaults, set per-group overrides, and iso
 ### OpenCode Backend (`opencode`)
 - Enables OpenCode runtime and provider/model routing.
 - Best for mixed-provider model usage and staged migration.
-- Uses `NANOCLAW_MODEL` in `provider/model` format (for example `openai/gpt-4.1`).
+- Uses `NANOCLAW_OPENCODE_MODEL` as canonical model env var in `provider/model`
+  format (for example `openai/gpt-4.1`), with `NANOCLAW_MODEL` as a
+  backward-compatible fallback.
 
 ## Global Configuration
 
@@ -56,8 +58,10 @@ NANOCLAW_OPENCODE_PORT=4096
 ```
 
 Notes:
-- `NANOCLAW_OPENCODE_MODEL` is host-side default configuration for OpenCode usage.
-- Group-level runtime wiring uses `NANOCLAW_MODEL` inside the container.
+- Canonical precedence is
+  `NANOCLAW_OPENCODE_MODEL` > `NANOCLAW_MODEL` > built-in default.
+- Container runtime sets both env vars to the resolved model value so legacy
+  readers of `NANOCLAW_MODEL` continue to work.
 
 ## Per-Group Override
 

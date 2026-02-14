@@ -7,6 +7,7 @@ import {
   SDK_BACKEND,
 } from './config.js';
 import { logger } from './logger.js';
+import { resolveOpenCodeModelForGroup } from './opencode-model.js';
 import { RegisteredGroup } from './types.js';
 
 export interface GroupBackendStatus {
@@ -46,7 +47,7 @@ export function resolveGroupBackendSelection(
   return {
     sdkBackend,
     source,
-    openCodeModel: group.containerConfig?.openCodeModel || OPENCODE_MODEL,
+    openCodeModel: resolveOpenCodeModelForGroup(group, OPENCODE_MODEL),
   };
 }
 
