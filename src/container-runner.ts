@@ -14,6 +14,8 @@ import {
   DATA_DIR,
   GROUPS_DIR,
   IDLE_TIMEOUT,
+  OPENCODE_MODEL,
+  SDK_BACKEND,
 } from './config.js';
 import { logger } from './logger.js';
 import { validateAdditionalMounts } from './mount-security.js';
@@ -44,7 +46,7 @@ export interface ContainerInput {
 }
 
 export interface ContainerOutput {
-  status: 'success' | 'error';
+  status: 'success' | 'error' | 'timeout';
   result: string | null;
   newSessionId?: string;
   error?: string;
@@ -56,6 +58,28 @@ interface VolumeMount {
   readonly: boolean;
 }
 
+function resolveSdkBackend(group: RegisteredGroup): 'claude' | 'opencode' {
+  const sdkBackend = group.containerConfig?.sdkBackend || SDK_BACKEND;
+  if (sdkBackend !== 'claude' && sdkBackend !== 'opencode') {
+    throw new Error(
+      `Invalid group SDK backend: ${sdkBackend}. Must be 'claude' or 'opencode'`,
+    );
+  }
+  return sdkBackend;
+}
+
+function resolveOpenCodeModel(group: RegisteredGroup): string {
+  return group.containerConfig?.openCodeModel || OPENCODE_MODEL;
+}
+
+function parseEnvLine(line: string): [string, string] | null {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith('#')) return null;
+  const eqIdx = trimmed.indexOf('=');
+  if (eqIdx <= 0) return null;
+  return [trimmed.slice(0, eqIdx).trim(), trimmed.slice(eqIdx + 1)];
+}
+
 function buildVolumeMounts(
   group: RegisteredGroup,
   isMain: boolean,
@@ -63,6 +87,8 @@ function buildVolumeMounts(
   const mounts: VolumeMount[] = [];
   const homeDir = getHomeDir();
   const projectRoot = process.cwd();
+  const sdkBackend = resolveSdkBackend(group);
+  const openCodeModel = resolveOpenCodeModel(group);
 
   if (isMain) {
     // Main gets the entire project root mounted
@@ -160,30 +186,40 @@ function buildVolumeMounts(
 
   // Environment file directory (workaround for Apple Container -i env var bug)
   // Only expose specific auth variables needed by Claude Code, not the entire .env
-  const envDir = path.join(DATA_DIR, 'env');
+  const envDir = path.join(DATA_DIR, 'env', group.folder);
   fs.mkdirSync(envDir, { recursive: true });
+  const envVars = new Map<string, string>();
   const envFile = path.join(projectRoot, '.env');
   if (fs.existsSync(envFile)) {
     const envContent = fs.readFileSync(envFile, 'utf-8');
-    const allowedVars = ['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY', 'NANOCLAW_SDK_BACKEND', 'NANOCLAW_MODEL'];
-    const filteredLines = envContent.split('\n').filter((line) => {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) return false;
-      return allowedVars.some((v) => trimmed.startsWith(`${v}=`));
-    });
-
-    if (filteredLines.length > 0) {
-      fs.writeFileSync(
-        path.join(envDir, 'env'),
-        filteredLines.join('\n') + '\n',
-      );
-      mounts.push({
-        hostPath: envDir,
-        containerPath: '/workspace/env-dir',
-        readonly: true,
-      });
+    const allowedVars = [
+      'CLAUDE_CODE_OAUTH_TOKEN',
+      'ANTHROPIC_API_KEY',
+      'NANOCLAW_SDK_BACKEND',
+      'NANOCLAW_MODEL',
+      'NANOCLAW_OPENCODE_MODEL',
+    ];
+    for (const line of envContent.split('\n')) {
+      const parsed = parseEnvLine(line);
+      if (!parsed) continue;
+      const [key, value] = parsed;
+      if (allowedVars.includes(key)) {
+        envVars.set(key, value);
+      }
     }
   }
+  envVars.set('NANOCLAW_SDK_BACKEND', sdkBackend);
+  envVars.set('NANOCLAW_MODEL', openCodeModel);
+  envVars.set('NANOCLAW_OPENCODE_MODEL', openCodeModel);
+  fs.writeFileSync(
+    path.join(envDir, 'env'),
+    [...envVars.entries()].map(([key, value]) => `${key}=${value}`).join('\n') + '\n',
+  );
+  mounts.push({
+    hostPath: envDir,
+    containerPath: '/workspace/env-dir',
+    readonly: true,
+  });
 
   // Mount agent-runner source from host — recompiled on container startup.
   // Bypasses Apple Container's sticky build cache for code changes.

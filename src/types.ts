@@ -31,6 +31,8 @@ export interface ContainerConfig {
   additionalMounts?: AdditionalMount[];
   timeout?: number; // Default: 300000 (5 minutes)
   model?: string; // Model override (e.g., "anthropic/claude-opus-4-20250514", "openai/gpt-4o")
+  sdkBackend?: 'claude' | 'opencode'; // Optional per-group SDK backend override
+  openCodeModel?: string; // Optional per-group OpenCode model override
 }
 
 export interface RegisteredGroup {

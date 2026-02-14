@@ -270,6 +270,8 @@ describe('MCP Tools integration', () => {
           name: 'Family Chat',
           folder: 'family-chat',
           trigger: '@Andy',
+          sdk_backend: 'opencode',
+          opencode_model: 'openai/gpt-4.1',
         });
 
         const payloads = readIpcPayloads(TASKS_DIR).filter((p) => p.type === 'register_group');
@@ -283,6 +285,8 @@ describe('MCP Tools integration', () => {
           name: 'Family Chat',
           folder: 'family-chat',
           trigger: '@Andy',
+          sdkBackend: 'opencode',
+          openCodeModel: 'openai/gpt-4.1',
         });
       });
 

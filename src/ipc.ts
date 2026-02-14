@@ -172,6 +172,8 @@ export async function processTaskIpc(
     folder?: string;
     trigger?: string;
     containerConfig?: RegisteredGroup['containerConfig'];
+    sdkBackend?: 'claude' | 'opencode';
+    openCodeModel?: string;
   },
   sourceGroup: string, // Verified identity from IPC directory
   isMain: boolean, // Verified from directory path
@@ -360,12 +362,19 @@ export async function processTaskIpc(
         break;
       }
       if (data.jid && data.name && data.folder && data.trigger) {
+        const containerConfig = {
+          ...(data.containerConfig || {}),
+          ...(data.sdkBackend ? { sdkBackend: data.sdkBackend } : {}),
+          ...(data.openCodeModel ? { openCodeModel: data.openCodeModel } : {}),
+        };
+
         deps.registerGroup(data.jid, {
           name: data.name,
           folder: data.folder,
           trigger: data.trigger,
           added_at: new Date().toISOString(),
-          containerConfig: data.containerConfig,
+          containerConfig:
+            Object.keys(containerConfig).length > 0 ? containerConfig : undefined,
         });
       } else {
         logger.warn(

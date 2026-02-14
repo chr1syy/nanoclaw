@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
 import { exec } from 'child_process';
+import fs from 'fs';
 
 // Sentinel markers must match container-runner.ts
 const OUTPUT_START_MARKER = '---NANOCLAW_OUTPUT_START---';
@@ -15,6 +16,8 @@ vi.mock('./config.js', () => ({
   DATA_DIR: '/tmp/nanoclaw-test-data',
   GROUPS_DIR: '/tmp/nanoclaw-test-groups',
   IDLE_TIMEOUT: 1800000, // 30min
+  SDK_BACKEND: 'claude',
+  OPENCODE_MODEL: 'anthropic/claude-sonnet-4-20250514',
 }));
 
 // Mock logger
@@ -369,5 +372,51 @@ describe('container-runner timeout behavior', () => {
       result: 'OpenCode timeout: No activity for 30 minutes',
       newSessionId: 'legacy-timeout',
     });
+  });
+
+  it('writes per-group env with backend/model overrides', async () => {
+    const groupWithOverrides: RegisteredGroup = {
+      ...testGroup,
+      containerConfig: {
+        sdkBackend: 'opencode',
+        openCodeModel: 'openai/gpt-4.1',
+      },
+    };
+
+    const resultPromise = runContainerAgent(
+      groupWithOverrides,
+      testInput,
+      () => {},
+    );
+
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+
+    const writeCalls = vi.mocked(fs.writeFileSync).mock.calls;
+    const envWrite = writeCalls.find((c) => String(c[0]).endsWith('/env/test-group/env'));
+    expect(envWrite).toBeDefined();
+    expect(String(envWrite?.[1])).toContain('NANOCLAW_SDK_BACKEND=opencode');
+    expect(String(envWrite?.[1])).toContain('NANOCLAW_MODEL=openai/gpt-4.1');
+    expect(String(envWrite?.[1])).toContain('NANOCLAW_OPENCODE_MODEL=openai/gpt-4.1');
+  });
+
+  it('rejects invalid per-group sdk backend values', async () => {
+    const invalidGroup: RegisteredGroup = {
+      ...testGroup,
+      containerConfig: {
+        sdkBackend: 'invalid' as 'claude',
+      },
+    };
+
+    await expect(
+      runContainerAgent(
+        invalidGroup,
+        testInput,
+        () => {},
+      ),
+    ).rejects.toThrow(
+      "Invalid group SDK backend: invalid. Must be 'claude' or 'opencode'",
+    );
   });
 });

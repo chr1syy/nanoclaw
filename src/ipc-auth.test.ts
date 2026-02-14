@@ -576,6 +576,28 @@ describe('register_group success', () => {
     expect(group!.trigger).toBe('@Andy');
   });
 
+  it('register_group stores per-group SDK override fields', async () => {
+    await processTaskIpc(
+      {
+        type: 'register_group',
+        jid: 'sdk@g.us',
+        name: 'SDK Group',
+        folder: 'sdk-group',
+        trigger: '@Andy',
+        sdkBackend: 'opencode',
+        openCodeModel: 'openai/gpt-4.1',
+      },
+      'main',
+      true,
+      deps,
+    );
+
+    const group = getRegisteredGroup('sdk@g.us');
+    expect(group).toBeDefined();
+    expect(group!.containerConfig?.sdkBackend).toBe('opencode');
+    expect(group!.containerConfig?.openCodeModel).toBe('openai/gpt-4.1');
+  });
+
   it('register_group rejects request with missing fields', async () => {
     await processTaskIpc(
       {

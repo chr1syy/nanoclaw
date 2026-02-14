@@ -9,7 +9,7 @@ Create a unified configuration system that supports both SDK backends with clear
 
 ## Tasks
 
-- [ ] Update `src/config.ts` with OpenCode-related configuration:
+- [x] Update `src/config.ts` with OpenCode-related configuration:
 
   ```typescript
   // Add to existing config
@@ -22,8 +22,10 @@ Create a unified configuration system that supports both SDK backends with clear
     throw new Error(`Invalid SDK_BACKEND: ${SDK_BACKEND}. Must be 'claude' or 'opencode'`);
   }
   ```
+  - Completed in `src/config.ts` with strict backend validation, `OPENCODE_MODEL`, and `OPENCODE_SERVER_PORT` exports.
+  - Added verification in `src/config.test.ts` for defaults, env overrides, and invalid backend rejection.
 
-- [ ] Implement per-group SDK override capability:
+- [x] Implement per-group SDK override capability:
 
   In group registration/config, allow specifying SDK:
   ```typescript
@@ -39,6 +41,11 @@ Create a unified configuration system that supports both SDK backends with clear
   const sdkBackend = groupConfig.sdkBackend || SDK_BACKEND;
   env.NANOCLAW_SDK_BACKEND = sdkBackend;
   ```
+  - Added optional `containerConfig.sdkBackend` and `containerConfig.openCodeModel` to `RegisteredGroup` config in `src/types.ts`.
+  - Updated `src/ipc.ts` `register_group` handling to accept `sdkBackend` / `openCodeModel` and persist them into `containerConfig`.
+  - Updated `container/agent-runner/src/ipc-mcp-stdio.ts` `register_group` tool schema to accept optional `sdk_backend` / `opencode_model`.
+  - Updated `src/container-runner.ts` to resolve per-group backend/model overrides, validate backend values, and write a per-group env file (`data/env/{group}/env`) with forced `NANOCLAW_SDK_BACKEND` and `NANOCLAW_MODEL` values to prevent cross-group races.
+  - Added tests in `src/container-runner.test.ts`, `src/ipc-auth.test.ts`, and `container/agent-runner/src/__tests__/mcp-integration.test.ts` for override propagation and validation.
 
 - [ ] Create/update `.env.example` with all OpenCode-related variables:
 

@@ -248,6 +248,8 @@ Use available_groups.json to find the JID for a group. The folder name should be
     name: z.string().describe('Display name for the group'),
     folder: z.string().describe('Folder name for group files (lowercase, hyphens, e.g., "family-chat")'),
     trigger: z.string().describe('Trigger word (e.g., "@Andy")'),
+    sdk_backend: z.enum(['claude', 'opencode']).optional().describe('Optional SDK backend override for this group'),
+    opencode_model: z.string().optional().describe('Optional OpenCode model override (e.g., "openai/gpt-4.1")'),
   },
   async (args) => {
     if (!isMain) {
@@ -263,6 +265,8 @@ Use available_groups.json to find the JID for a group. The folder name should be
       name: args.name,
       folder: args.folder,
       trigger: args.trigger,
+      sdkBackend: args.sdk_backend,
+      openCodeModel: args.opencode_model,
       timestamp: new Date().toISOString(),
     };
 
