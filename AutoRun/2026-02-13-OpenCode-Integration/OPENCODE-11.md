@@ -35,7 +35,9 @@ Create comprehensive documentation for the OpenCode integration, including a mig
   ```
   ```
 
-- [ ] Create `docs/OPENCODE-INTEGRATION.md` with detailed technical documentation:
+- [x] Create `docs/OPENCODE-INTEGRATION.md` with detailed technical documentation:
+
+  Notes (2026-02-14): Added `docs/OPENCODE-INTEGRATION.md` with architecture and adapter diagrams, backend session lifecycle differences, MCP tool mapping, OpenCode agent/config generation flow, and a troubleshooting matrix tied to implementation files.
 
   - Architecture overview with diagrams
   - How the adapter pattern works
