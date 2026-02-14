@@ -82,7 +82,7 @@ Create a unified configuration system that supports both SDK backends with clear
   - Updated registered-group DB read/write accessors to persist and hydrate SDK preference columns while maintaining backward compatibility with `container_config`.
   - Added coverage in `src/db.test.ts` for SDK preference persistence through `setRegisteredGroup`, `getRegisteredGroup`, and `getAllRegisteredGroups`.
 
-- [ ] Create documentation for SDK selection in `docs/SDK-BACKENDS.md`:
+- [x] Create documentation for SDK selection in `docs/SDK-BACKENDS.md`:
 
   ```markdown
   # SDK Backend Configuration
@@ -111,6 +111,7 @@ Create a unified configuration system that supports both SDK backends with clear
   - `google/gemini-pro`
   - See OpenCode docs for full list
   ```
+  - Added `docs/SDK-BACKENDS.md` with backend overview, global `NANOCLAW_SDK_BACKEND` configuration, per-group override paths (`/config sdk` and `register_group`), model selection examples, provider API key isolation guidance, and migration references.
 
 - [ ] Add runtime SDK backend detection and logging:
   - Log which backend is being used at startup
