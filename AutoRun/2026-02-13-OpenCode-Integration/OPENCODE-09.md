@@ -47,7 +47,7 @@ Create a unified configuration system that supports both SDK backends with clear
   - Updated `src/container-runner.ts` to resolve per-group backend/model overrides, validate backend values, and write a per-group env file (`data/env/{group}/env`) with forced `NANOCLAW_SDK_BACKEND` and `NANOCLAW_MODEL` values to prevent cross-group races.
   - Added tests in `src/container-runner.test.ts`, `src/ipc-auth.test.ts`, and `container/agent-runner/src/__tests__/mcp-integration.test.ts` for override propagation and validation.
 
-- [ ] Create/update `.env.example` with all OpenCode-related variables:
+- [x] Create/update `.env.example` with all OpenCode-related variables:
 
   ```bash
   # SDK Backend Selection
@@ -62,6 +62,8 @@ Create a unified configuration system that supports both SDK backends with clear
   GOOGLE_API_KEY=...           # For Gemini models
   ANTHROPIC_API_KEY=sk-ant-... # For Claude models (shared with Claude SDK)
   ```
+  - Added `NANOCLAW_OPENCODE_MODEL` and `NANOCLAW_OPENCODE_PORT` examples with defaults and usage context.
+  - Added provider API key placeholders (`OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`) for non-Anthropic OpenCode model support.
 
 - [ ] Update database schema for group SDK preferences:
 
