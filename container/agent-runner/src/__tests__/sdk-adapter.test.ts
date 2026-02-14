@@ -7,12 +7,18 @@ const { claudeQueryMock } = vi.hoisted(() => ({
 const { createOpencodeClientMock } = vi.hoisted(() => ({
   createOpencodeClientMock: vi.fn(),
 }));
+const { createOpencodeServerMock } = vi.hoisted(() => ({
+  createOpencodeServerMock: vi.fn(),
+}));
 
 vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
   query: claudeQueryMock,
 }));
 vi.mock('@opencode-ai/sdk/client', () => ({
   createOpencodeClient: createOpencodeClientMock,
+}));
+vi.mock('@opencode-ai/sdk/server', () => ({
+  createOpencodeServer: createOpencodeServerMock,
 }));
 
 import { ClaudeAdapter } from '../sdk-adapter/claude-adapter.js';
@@ -176,6 +182,7 @@ describe('SDK Adapter', () => {
       expect(createOpencodeClientMock).toHaveBeenCalledWith({
         baseUrl: 'http://127.0.0.1:5123',
       });
+      expect(createOpencodeServerMock).not.toHaveBeenCalled();
       expect(createSessionMock).toHaveBeenCalledTimes(1);
     });
 

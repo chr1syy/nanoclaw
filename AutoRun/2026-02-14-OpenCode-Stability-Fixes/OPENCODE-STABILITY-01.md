@@ -11,4 +11,9 @@
     - `cd container/agent-runner && npm run build` exits successfully.
     - `cd container/agent-runner && npx vitest run src/__tests__/sdk-adapter.test.ts src/sdk-adapter/opencode-adapter.test.ts` passes (18 tests).
 
-- [ ] Add regression coverage for startup behavior in `container/agent-runner/src/__tests__/sdk-adapter.test.ts` (or closest adapter test file) proving the OpenCode adapter does not attempt to spawn a second server and uses configured base URL/port for client connection. Success criteria: test fails before fix and passes after fix.
+- [x] Add regression coverage for startup behavior in `container/agent-runner/src/__tests__/sdk-adapter.test.ts` (or closest adapter test file) proving the OpenCode adapter does not attempt to spawn a second server and uses configured base URL/port for client connection. Success criteria: test fails before fix and passes after fix.
+  - Completed: mocked `@opencode-ai/sdk/server` in `container/agent-runner/src/__tests__/sdk-adapter.test.ts` and asserted `createOpencodeServer` is not called during OpenCode adapter initialization/session creation.
+  - Completed: retained/verified explicit base URL + port assertions for health-check and client connection (`http://127.0.0.1:5123`).
+  - Verification:
+    - `cd container/agent-runner && npx vitest run src/__tests__/sdk-adapter.test.ts src/sdk-adapter/opencode-adapter.test.ts` passes (18 tests).
+    - `cd container/agent-runner && npm run build` exits successfully.
