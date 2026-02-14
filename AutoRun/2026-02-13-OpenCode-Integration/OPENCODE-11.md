@@ -125,7 +125,9 @@ Create comprehensive documentation for the OpenCode integration, including a mig
   - Container rebuild requirements
   - Configuration options
 
-- [ ] Create changelog entry for this feature:
+- [x] Create changelog entry for this feature:
+
+  Notes (2026-02-14): Added top-level `CHANGELOG.md` with a new `## [1.1.0] - 2026-02-14` entry documenting OpenCode backend support, multi-model capabilities, per-group backend configuration, adapter-layer addition, container/config changes, and migration guidance linking to `docs/MIGRATION.md`.
 
   ```markdown
   ## [X.Y.Z] - YYYY-MM-DD
